@@ -4,8 +4,8 @@ import { registrySaveFailure } from "../../shared/registry-save-failure";
 
 describe("plainErrorLine", () => {
   it.each([
-    ["Failed to fetch", "Couldn't reach OpenMausBot. Check that it's running, then try again."],
-    ["NetworkError when attempting to fetch resource.", "Couldn't reach OpenMausBot. Check that it's running, then try again."],
+    ["Failed to fetch", "Couldn't reach MyBot. Check that it's running, then try again."],
+    ["NetworkError when attempting to fetch resource.", "Couldn't reach MyBot. Check that it's running, then try again."],
     ["The operation was aborted due to timeout", "That took too long. Try again."],
     ["502 Bad Gateway", "Something went wrong on the other end. Try again."],
     ["500 Internal Server Error", "Something went wrong on the other end. Try again."],

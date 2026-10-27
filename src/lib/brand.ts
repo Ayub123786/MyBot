@@ -1,3 +1,5 @@
+import { APP_NAME } from "../../shared/brand.js";
+
 export interface Brand {
   name: string;
   tagline?: string;
@@ -14,7 +16,7 @@ export interface BrandStatus {
   notice?: string;
 }
 
-export const DEFAULT_BRAND: Brand = { name: "OpenMausBot" };
+export const DEFAULT_BRAND: Brand = { name: APP_NAME };
 
 let current: BrandStatus = { brand: DEFAULT_BRAND, source: "default", file: "" };
 

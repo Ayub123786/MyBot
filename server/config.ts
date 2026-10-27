@@ -1,10 +1,11 @@
-// ~/.openmausbot/config.json, with env vars overriding its credentials.
-import { readFileSync, mkdirSync, existsSync, renameSync, statSync } from "node:fs";
+import { readFileSync, mkdirSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { z } from "zod";
 import { normalizeImageGenerationUrl, type ImageGenerationConfig } from "../shared/image-generation.ts";
+import { DATA_DIR_NAME } from "../shared/brand.ts";
+import { migrateDataDir } from "../shared/data-migration.ts";
 import { botAvatarUrlSchema } from "../shared/bot-avatar.ts";
 import { writeFileAtomic } from "./atomic.ts";
 import { anthropicKeyEnv } from "./anthropic-key-env.ts";
@@ -743,17 +744,13 @@ export function changedInstanceIds(before: Record<string, unknown>, after: Recor
     .filter((id) => !isDeepStrictEqual(before[id], after[id]));
 }
 
-export const DATA_DIR = process.env.OMB_DATA_DIR ?? join(homedir(), ".openmausbot");
-const LEGACY_DATA_DIR = join(homedir(), ".opengrokbot");
+export const DATA_DIR = process.env.OMB_DATA_DIR ?? join(homedir(), DATA_DIR_NAME);
 export const EVENTS_DIR = join(DATA_DIR, "events");
 export const NATIVE_DIR = join(DATA_DIR, "native");
 
 export function ensureDirs() {
-  if (!existsSync(DATA_DIR) && existsSync(LEGACY_DATA_DIR)) {
-    try {
-      renameSync(LEGACY_DATA_DIR, DATA_DIR);
-    } catch {
-    }
+  if (!process.env.OMB_DATA_DIR) {
+    migrateDataDir();
   }
   for (const dir of [DATA_DIR, EVENTS_DIR, NATIVE_DIR]) mkdirSync(dir, { recursive: true });
   migrateLegacyFeatureFlags(DATA_DIR);

@@ -77,10 +77,12 @@ export function registerUpdaterIpc({ pageAllowed: allowed }) {
 // macOS keeps the process (and updater) alive after its window closes, so each new window is retargeted here.
 export function attachUpdaterWindow(mainWindow) {
   win = mainWindow;
-}
+// Config flag: In MyBot, in-app auto-update is turned OFF by default.
+// Set to true to re-enable update checking against a custom update feed.
+export const AUTO_UPDATE_ENABLED = false;
 
 export function startUpdater() {
-  if (!app.isPackaged) {
+  if (!AUTO_UPDATE_ENABLED || !app.isPackaged) {
     updaterCoordinator = null;
     setState({ status: "idle" });
     return;

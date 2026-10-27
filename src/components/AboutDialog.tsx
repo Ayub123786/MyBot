@@ -1,8 +1,8 @@
 import { useEffect, useRef } from "react";
-
 import {
   APP_NAME,
   APP_REPOSITORY,
+  ATTRIBUTION,
   DOCS_URL,
   LICENSE_URL,
   RELEASES_URL,
@@ -51,7 +51,10 @@ export function AboutDialog({ open, onClose }: { open: boolean; onClose: () => v
           {platform ? ` · ${platform}` : ""}
         </p>
         <p className="mt-3 text-[13px] leading-relaxed text-ink-secondary">
-          An open-source desktop home for your agents. Apache 2.0 licensed.
+          AI agent team for investment firms, VCs, and private equity due diligence.
+        </p>
+        <p className="mt-2 text-[11px] text-ink-muted">
+          {ATTRIBUTION}
         </p>
         <div className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-1.5 text-[13px]">
           <AboutLink href={APP_REPOSITORY} label="GitHub" />
