@@ -30,12 +30,38 @@ const SEND_VERBS = new Set([
   "PAY",
   "PAYOUT",
   "TRANSFER",
+  "EMAIL",
+  "MAIL",
+  "SMS",
+  "MESSAGE",
+  "CALL",
+  "SIGNUP",
+  "REGISTER",
+  "WIRE",
+  "DISBURSE",
 ]);
 
 /** Creating one of these is sending it: a created comment is a comment
  * someone reads, a created invoice is one someone receives. */
 const CREATE_VERBS = new Set(["CREATE", "CREATION", "ADD", "NEW"]);
-const SENT_NOUNS = new Set(["MESSAGE", "COMMENT", "POST", "EMAIL", "MAIL", "INVOICE", "PAYMENT", "REFUND", "REPLY", "TWEET", "DM"]);
+const SENT_NOUNS = new Set([
+  "MESSAGE",
+  "COMMENT",
+  "POST",
+  "EMAIL",
+  "MAIL",
+  "INVOICE",
+  "PAYMENT",
+  "REFUND",
+  "REPLY",
+  "TWEET",
+  "DM",
+  "ACCOUNT",
+  "USER",
+  "INVITATION",
+  "WIRE",
+  "TRANSACTION",
+]);
 
 /** A read verb first means the rest of the name is what is being read:
  * REDDIT_GET_POST fetches a post, it does not post. */
@@ -80,8 +106,8 @@ export function isOutboundTool(name: string): boolean {
   const tokens = actionTokens(name);
   if (tokens.length === 0) return false;
   if (isReadOnlyTool(name)) return false;
+  if (tokens.includes("DRAFT") && !tokens.includes("SEND") && !tokens.includes("POST") && !tokens.includes("PUBLISH")) return false;
   if (tokens.some((token) => SEND_VERBS.has(token))) return true;
-  if (tokens.includes("DRAFT")) return false;
   return tokens.some((token) => CREATE_VERBS.has(token)) && tokens.some((token) => SENT_NOUNS.has(token));
 }
 

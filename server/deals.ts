@@ -2,8 +2,10 @@ import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { deflateRawSync } from "node:zlib";
-import { DATA_DIR } from "./config.ts";
+import { DATA_DIR, loadConfig } from "./config.ts";
 import { extractDocumentContent, type ExtractedTable } from "./deal-document-extractor.ts";
+import { findFinancialIdentifiers, redactFinancialIdentifiers, confidentialModePromptFilter } from "./redact.ts";
+import { appendAuditLog } from "./audit-log.ts";
 
 export const DEALS_DIR = join(DATA_DIR, "deals");
 
@@ -28,6 +30,9 @@ export interface DealDocument {
   tablesCount: number;
   extractedText: string;
   tables?: ExtractedTable[];
+  hasFinancialIdentifiers?: boolean;
+  confidentialWarnings?: string[];
+  isRedacted?: boolean;
 }
 
 export interface DealFinding {
@@ -227,11 +232,34 @@ export function addDealDocument(
   let wordCount = 0;
   let tables: ExtractedTable[] = [];
 
+  let hasFinancialIdentifiers = false;
+  let isRedacted = false;
+  const confidentialWarnings: string[] = [];
+
   try {
     const extracted = extractDocumentContent(storedPath, sanitizedName, mime);
     extractedText = extracted.text;
     wordCount = extracted.wordCount;
     tables = extracted.tables;
+
+    const matches = findFinancialIdentifiers(extractedText);
+    if (matches.length > 0) {
+      hasFinancialIdentifiers = true;
+      const types = [...new Set(matches.map((m) => m.type))].join(", ");
+      confidentialWarnings.push(
+        `Document contains ${matches.length} financial identifier(s) (${types}).`,
+      );
+
+      const cfg = loadConfig();
+      const isConfidential = cfg.confidentialMode?.enabled ?? true;
+      const shouldRedact = cfg.confidentialMode?.redactFinancials ?? true;
+
+      if (isConfidential && shouldRedact) {
+        extractedText = redactFinancialIdentifiers(extractedText);
+        isRedacted = true;
+        confidentialWarnings.push("Confidentiality mode: Financial identifiers were automatically redacted.");
+      }
+    }
 
     // Store extracted text into separate extracted/ directory for quick retrieval
     const extractedPath = join(dir, "extracted", `${docId}.txt`);
@@ -256,12 +284,66 @@ export function addDealDocument(
     tablesCount: tables.length,
     extractedText,
     tables,
+    hasFinancialIdentifiers,
+    confidentialWarnings: confidentialWarnings.length ? confidentialWarnings : undefined,
+    isRedacted,
   };
 
   deal.documents.push(doc);
   deal.updatedAt = new Date().toISOString();
   saveDeal(deal);
+
+  appendAuditLog({
+    botId: "data-room",
+    botName: "Data Room Ingestion",
+    dealId,
+    action: "document_access",
+    target: sanitizedName,
+    userApproval: "auto",
+    status: extractionStatus === "failed" ? "failed" : "success",
+    metadata: {
+      docId,
+      bytes: fileBytes.length,
+      mime,
+      hasFinancialIdentifiers,
+      isRedacted,
+    },
+  });
+
   return doc;
+}
+
+/**
+ * Filter and prepare prompts for diligence bots under Confidentiality Mode.
+ */
+export function prepareDealPrompt(
+  dealId: string,
+  prompt: string,
+  options?: { isCloudModel?: boolean; botId?: string; botName?: string },
+): { prompt: string; redacted: boolean; warnings: string[] } {
+  const cfg = loadConfig();
+  const isConfidential = cfg.confidentialMode?.enabled ?? true;
+  const result = confidentialModePromptFilter(prompt, isConfidential);
+
+  if (options?.isCloudModel && (cfg.confidentialMode?.warnCloudModels ?? true)) {
+    result.warnings.push("Privacy Advisory: Delivering prompt to external cloud LLM under Confidentiality Mode.");
+  }
+
+  appendAuditLog({
+    botId: options?.botId ?? "diligence-engine",
+    botName: options?.botName ?? "Diligence Dispatcher",
+    dealId,
+    action: "model_prompt",
+    target: options?.isCloudModel ? "external_cloud_model" : "local_model",
+    userApproval: "auto",
+    status: "success",
+    metadata: {
+      redacted: result.redacted,
+      warningsCount: result.warnings.length,
+    },
+  });
+
+  return result;
 }
 
 /**

@@ -92,5 +92,14 @@ This log records non-trivial decisions made during the MyBot transformation, rat
   - Built comprehensive `DealsView.tsx` with Overview metrics, drag-and-drop Data Room with live extraction status, Deal Team chat dispatcher, card-based Findings dashboard (severity, confidence, facts/assumptions/opinions tags), and IC Memo viewer with one-click Word/PDF export.
   - Pre-configured disabled diligence MCP servers in `shared/mcp-templates.ts` and `server/config.ts` (Tavily search, Exa neural search, SEC EDGAR, OpenCorporates, and enterprise placeholders for Crunchbase and PitchBook; no DocuSign).
 - **Why**: Investment teams handle highly confidential deal rooms across multiple competing portfolio companies or acquisition targets. Absolute per-deal isolation and instant structured parsing are mandatory.
-- **Alternatives**: Using third-party heavy C++ binaries or external cloud extraction services; rejected to keep the app 100% locally self-contained, fast, and privacy-preserving.
+---
+
+### Decision 11: Outbound Tool Safety Floor, Confidentiality Mode, and Institutional Audit Log (Phase 5)
+- **Decision**:
+  - Expanded outbound tool gates in `shared/outbound.ts`: added `"EMAIL"`, `"MAIL"`, `"SMS"`, `"MESSAGE"`, `"CALL"`, `"SIGNUP"`, `"REGISTER"`, `"WIRE"`, `"DISBURSE"` to `SEND_VERBS`, and `"ACCOUNT"`, `"USER"`, `"INVITATION"`, `"WIRE"`, `"TRANSACTION"` to `SENT_NOUNS`. Any tool call that sends external messages, creates accounts, or moves money is intercepted by `isOutboundTool()` and triggers `approve: null, source: "outbound-guard"`.
+  - Implemented financial identifier redaction in `shared/financial-redact.ts`: regex patterns detecting and replacing SSNs (`«redacted SSN»`), ABA wire routing numbers (`«redacted Wire Routing»`), bank account numbers (`«redacted Bank Account»`), credit cards (`«redacted Credit Card»`), and phone numbers (`«redacted Phone Number»`).
+  - Added `confidentialMode` to `AppConfig` (`server/config.ts`) and wired automatic redaction and cloud privacy warnings into `addDealDocument` and `prepareDealPrompt` in `server/deals.ts`.
+  - Implemented append-only local audit log in `server/audit-log.ts` recording events to `~/.mybot/audit/audit.jsonl`, with query API (`GET /api/audit`), RFC 4180 CSV export (`GET /api/audit/export/csv`), and UI `AuditLogSection.tsx` in Settings -> Activity.
+- **Why**: Institutional investment firms and compliance officers require hard software guards against unauthorized external actions, data room confidentiality protection, and immutable audit trails for LP reporting.
+- **Alternatives**: Relying solely on system prompts; rejected because prompt adherence cannot guarantee safety or compliance floors.
 

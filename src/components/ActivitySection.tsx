@@ -8,6 +8,7 @@ import { ACTIVITY_WHATS, activityQuery, describeEntry, formatValue, whoLabel, ty
 import type { LocaleKey } from "@/locales";
 import { Select } from "./Select";
 import { Card } from "./SettingsPrimitives";
+import { AuditLogSection } from "./AuditLogSection";
 
 const inputClass = "rounded-lg border border-hairline/40 bg-inset px-3 py-2 text-[13px] text-ink placeholder:text-ink-secondary focus:outline-none [color-scheme:dark]";
 
@@ -81,41 +82,44 @@ export function ActivitySection() {
 
   const set = (patch: Partial<ActivityFilters>) => setFilters((current) => ({ ...current, ...patch }));
   return (
-    <Card title={t("activity.title")} subtitle={t("activity.subtitle", { days: String(days ?? 180) })}>
-      <div className="flex flex-wrap items-end gap-2">
-        <label className="flex flex-col gap-1 text-[12px] text-ink-secondary">
-          {t("activity.who")}
-          <input value={filters.who} onChange={(e) => set({ who: e.target.value })} placeholder={t("activity.whoPlaceholder")} className={cn(inputClass, "w-44")} />
-        </label>
-        <label className="flex flex-col gap-1 text-[12px] text-ink-secondary">
-          {t("activity.what")}
-          <Select value={filters.what} onChange={(e) => set({ what: e.target.value as ActivityWhat })}>
-            {ACTIVITY_WHATS.map((what) => <option key={what} value={what}>{t(`activity.what.${what}` as LocaleKey)}</option>)}
-          </Select>
-        </label>
-        <label className="flex flex-col gap-1 text-[12px] text-ink-secondary">
-          {t("activity.from")}
-          <input type="date" value={filters.from} max={filters.to || undefined} onChange={(e) => set({ from: e.target.value })} className={inputClass} />
-        </label>
-        <label className="flex flex-col gap-1 text-[12px] text-ink-secondary">
-          {t("activity.to")}
-          <input type="date" value={filters.to} min={filters.from || undefined} onChange={(e) => set({ to: e.target.value })} className={inputClass} />
-        </label>
-        <button type="button" onClick={() => void load()} disabled={loading} aria-label={t("activity.refresh")} title={t("activity.refresh")} className="cursor-pointer rounded-md p-2 text-ink-secondary hover:bg-control hover:text-ink disabled:opacity-50">
-          {loading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-        </button>
-        <a href={`/api/admin-activity.csv${query}`} download className="ui-button hover:bg-raised-hover">
-          <Download size={13} aria-hidden="true" />{t("activity.export")}
-        </a>
-      </div>
-      {error && <p role="alert" className="mt-3 text-[12.5px] text-danger">{t("activity.error", { message: error })}</p>}
-      {!error && entries.length === 0 && !loading && <p className="mt-4 text-[13px] text-ink-secondary">{t("activity.empty")}</p>}
-      {entries.length > 0 && (
-        <ul className="mt-3 flex flex-col">
-          {entries.map((entry, index) => <ActivityRow key={`${entry.at}-${index}`} entry={entry} />)}
-        </ul>
-      )}
-      {total > entries.length && <p className="mt-3 text-[12px] text-ink-secondary">{t("activity.more", { shown: String(entries.length), total: String(total) })}</p>}
-    </Card>
+    <div className="flex flex-col gap-6">
+      <AuditLogSection />
+      <Card title={t("activity.title")} subtitle={t("activity.subtitle", { days: String(days ?? 180) })}>
+        <div className="flex flex-wrap items-end gap-2">
+          <label className="flex flex-col gap-1 text-[12px] text-ink-secondary">
+            {t("activity.who")}
+            <input value={filters.who} onChange={(e) => set({ who: e.target.value })} placeholder={t("activity.whoPlaceholder")} className={cn(inputClass, "w-44")} />
+          </label>
+          <label className="flex flex-col gap-1 text-[12px] text-ink-secondary">
+            {t("activity.what")}
+            <Select value={filters.what} onChange={(e) => set({ what: e.target.value as ActivityWhat })}>
+              {ACTIVITY_WHATS.map((what) => <option key={what} value={what}>{t(`activity.what.${what}` as LocaleKey)}</option>)}
+            </Select>
+          </label>
+          <label className="flex flex-col gap-1 text-[12px] text-ink-secondary">
+            {t("activity.from")}
+            <input type="date" value={filters.from} max={filters.to || undefined} onChange={(e) => set({ from: e.target.value })} className={inputClass} />
+          </label>
+          <label className="flex flex-col gap-1 text-[12px] text-ink-secondary">
+            {t("activity.to")}
+            <input type="date" value={filters.to} min={filters.from || undefined} onChange={(e) => set({ to: e.target.value })} className={inputClass} />
+          </label>
+          <button type="button" onClick={() => void load()} disabled={loading} aria-label={t("activity.refresh")} title={t("activity.refresh")} className="cursor-pointer rounded-md p-2 text-ink-secondary hover:bg-control hover:text-ink disabled:opacity-50">
+            {loading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+          </button>
+          <a href={`/api/admin-activity.csv${query}`} download className="ui-button hover:bg-raised-hover">
+            <Download size={13} aria-hidden="true" />{t("activity.export")}
+          </a>
+        </div>
+        {error && <p role="alert" className="mt-3 text-[12.5px] text-danger">{t("activity.error", { message: error })}</p>}
+        {!error && entries.length === 0 && !loading && <p className="mt-4 text-[13px] text-ink-secondary">{t("activity.empty")}</p>}
+        {entries.length > 0 && (
+          <ul className="mt-3 flex flex-col">
+            {entries.map((entry, index) => <ActivityRow key={`${entry.at}-${index}`} entry={entry} />)}
+          </ul>
+        )}
+        {total > entries.length && <p className="mt-3 text-[12px] text-ink-secondary">{t("activity.more", { shown: String(entries.length), total: String(total) })}</p>}
+      </Card>
+    </div>
   );
 }

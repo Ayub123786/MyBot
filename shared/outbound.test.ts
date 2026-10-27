@@ -25,6 +25,18 @@ describe("isOutboundTool", () => {
       "mcp__x__post",
       "mcp__other__x_post",
       "TWITTER_X_POST",
+      // Institutional diligence outbound verbs & nouns:
+      "TWILIO_SMS",
+      "TWILIO_CALL",
+      "SENDGRID_EMAIL",
+      "MERCURY_WIRE_FUNDS",
+      "STRIPE_DISBURSE_FUNDS",
+      "AUTH0_SIGNUP_USER",
+      "OKTA_REGISTER_ACCOUNT",
+      "mcp__ledger__create_transaction",
+      "mcp__banking__create_account",
+      "mcp__auth__create_user",
+      "mcp__zoom__create_invitation",
     ]) {
       expect(isOutboundTool(name), name).toBe(true);
     }

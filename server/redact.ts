@@ -12,6 +12,15 @@ export function isSecretName(name: string): boolean {
 import { mask, redactSecretsInText } from "../shared/redact.ts";
 
 export { addHeldSecretScrubber, HELD_SECRET_MASK, mask, redactSecretsInText, scrubHeldSecrets } from "../shared/redact.ts";
+export {
+  redactFinancialIdentifiers,
+  containsFinancialIdentifiers,
+  findFinancialIdentifiers,
+  confidentialModePromptFilter,
+  REDACTION_LABELS as FINANCIAL_REDACTION_LABELS,
+  type FinancialIdentifierMatch,
+  type ConfidentialPromptFilterResult,
+} from "../shared/financial-redact.ts";
 
 export function redactSecrets(input: unknown, depth = 0): unknown {
   if (typeof input === "string") return redactSecretsInText(input);
