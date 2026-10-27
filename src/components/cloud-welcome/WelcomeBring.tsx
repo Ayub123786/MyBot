@@ -1,5 +1,5 @@
 import { useRef, useState, type Ref } from "react";
-import { Check, Laptop, Loader2, Sparkles, Users } from "lucide-react";
+import { Check, Loader2, Sparkles, Users } from "lucide-react";
 import { TeamLibraryPanel } from "@/components/TeamLibraryPanel";
 import { cn } from "@/lib/cn";
 import { listOf } from "@/lib/cloud-send";
@@ -9,7 +9,7 @@ import { CARD, CARD_IDLE, CARD_PICKED, CardIcon, Footer, PRIMARY, QUIET, SECONDA
 
 export type BringOutcome = "team" | "here" | "skipped";
 
-export function WelcomeBring({ name, desktop, older = false, cloudHasWork, sent = null, headingRef, onTeam, onFinish }: {
+export function WelcomeBring({ name, desktop: _desktop, older = false, cloudHasWork, sent = null, headingRef, onTeam, onFinish }: {
   name: string;
   /** The OpenMausBot app's own window, which brings this computer's bots here by itself. */
   desktop: boolean;
@@ -26,7 +26,7 @@ export function WelcomeBring({ name, desktop, older = false, cloudHasWork, sent 
   onFinish: (outcome: BringOutcome) => void;
 }) {
   const advanced = useAdvancedMode();
-  const [teams, setTeams] = useState(false);
+  const [teams, setTeams] = useState<string | boolean>(false);
   const [more, setMore] = useState(false);
   const teamButton = useRef<HTMLButtonElement>(null);
   const freshBody = <>
@@ -34,8 +34,12 @@ export function WelcomeBring({ name, desktop, older = false, cloudHasWork, sent 
     <span className="text-[14.5px] font-semibold text-ink">{t("cloudWelcome.bring.fresh")}</span>
     <span className="text-[12.5px] leading-relaxed text-ink-secondary">{t(advanced ? "cloudWelcome.bring.freshHint" : "cloudWelcome.bring.freshChief")}</span>
   </>;
-  const library = teams && <TeamLibraryPanel returnFocusRef={teamButton} onClose={() => setTeams(false)}
-    onImported={() => { onTeam(); setTeams(false); onFinish("team"); }} />;
+  const library = Boolean(teams) && <TeamLibraryPanel
+    returnFocusRef={teamButton}
+    initialSlug={typeof teams === "string" ? teams : undefined}
+    onClose={() => setTeams(false)}
+    onImported={() => { onTeam(); setTeams(false); onFinish("team"); }}
+  />;
 
   if (sent) {
     const arrived = sent.arrived?.length ? t("cloudSend.strip.arrived", { list: listOf(sent.arrived) }) : t("cloudSend.strip.allHere");
@@ -57,12 +61,17 @@ export function WelcomeBring({ name, desktop, older = false, cloudHasWork, sent 
 
   const actions = cloudHasWork
     ? <button type="button" className={PRIMARY} onClick={() => onFinish("here")}>{t("onboarding.continue")}</button>
-    : advanced
-      ? <>
-        <button ref={teamButton} type="button" className={PRIMARY} onClick={() => setTeams(true)}>{t("cloudWelcome.bring.chooseTeam")}</button>
-        <button type="button" className={QUIET} onClick={() => onFinish("skipped")}>{t("cloudIntent.skip")}</button>
-      </>
-      : <button type="button" className={PRIMARY} onClick={() => onFinish("skipped")}>{t("onboarding.continue")}</button>;
+    : <>
+        <button ref={teamButton} type="button" className={PRIMARY} onClick={() => setTeams("deal-team")}>
+          Start with Deal Team
+        </button>
+        <button type="button" className={SECONDARY} onClick={() => setTeams(true)}>
+          {t("cloudWelcome.bring.chooseTeam")}
+        </button>
+        <button type="button" className={QUIET} onClick={() => onFinish("skipped")}>
+          {t("cloudIntent.skip")}
+        </button>
+      </>;
   return <section aria-labelledby="cloud-welcome-step" data-welcome-step="bring" className="flex flex-col gap-5">
     <StepHeading headingRef={headingRef} title={t("cloudWelcome.bring.title", { name })} sub={t("cloudWelcome.bring.sub")} />
     {older && <p role="note" data-bring-update className="text-[13px] leading-relaxed text-ink">{t("cloudWelcome.bring.update")}</p>}
@@ -73,12 +82,21 @@ export function WelcomeBring({ name, desktop, older = false, cloudHasWork, sent 
           <span className="text-[12.5px] leading-relaxed text-ink-secondary">{t("cloudWelcome.bring.hereBody", { name })}</span>
         </div>
       : <div className="grid gap-3 @lg/step:grid-cols-2">
-          <div data-bring-choice="fresh" className={cn(CARD, CARD_PICKED)}>{freshBody}</div>
-          {!desktop && <div data-bring-desktop className={cn(CARD, "border-dashed border-hairline/60 bg-transparent")}>
-            <CardIcon icon={Laptop} />
-            <span className="text-[14.5px] font-semibold text-ink">{t("cloudWelcome.bring.desktopTitle")}</span>
-            <span className="text-[12.5px] leading-relaxed text-ink-secondary">{t("cloudWelcome.bring.desktopOnly")}</span>
-          </div>}
+          <div data-bring-choice="deal-team" className={cn(CARD, CARD_PICKED)}>
+            <CardIcon icon={Users} />
+            <span className="text-[14.5px] font-semibold text-ink">Deal Team (Recommended)</span>
+            <span className="text-[12.5px] leading-relaxed text-ink-secondary">
+              9-agent institutional diligence team covering screening, market sizing, financial modeling, legal/IP review, background checks, tech audit, red team, and IC memo.
+            </span>
+            <span className="mt-1">
+              <button type="button" className={SECONDARY} onClick={() => setTeams("deal-team")}>
+                Preview & Add
+              </button>
+            </span>
+          </div>
+          <div data-bring-choice="fresh" className={cn(CARD, CARD_IDLE)}>
+            {freshBody}
+          </div>
         </div>}
     <Footer>{actions}</Footer>
     {library}

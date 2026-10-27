@@ -1,3 +1,6 @@
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { parseJson, type JsonValue } from "./schema.ts";
 import { isBotPackage, parseBotPackage, parsePackageDocument, upgradeV1, type PackageDocument, type ParsedBotPackage } from "./bot-package.ts";
 import { PACKAGE_V1_VERSION } from "../shared/package-format.ts";
@@ -7,6 +10,38 @@ import { grokMarketplaceSlugFrom, grokMarketplaceUrl, grokShareIdFrom, grokShare
 export const TEAM_LIBRARY_REPOSITORY = "https://github.com/milind-soni/openmausbot-teams";
 export const TEAM_LIBRARY_RAW_ROOT = "https://raw.githubusercontent.com/milind-soni/openmausbot-teams/main";
 export const TEAM_LIBRARY_CATALOG_URL = `${TEAM_LIBRARY_RAW_ROOT}/catalog.json`;
+
+const __teamLibDir = typeof __dirname !== "undefined" ? __dirname : dirname(fileURLToPath(import.meta.url));
+
+export const BUILTIN_DEAL_TEAM_ENTRY: TeamCatalogEntry = {
+  slug: "deal-team",
+  name: "Deal Team",
+  summary: "A 9-agent diligence team covering screening, market sizing, financial modeling, legal review, founder checks, technical diligence, red-team risks, and IC memo synthesis.",
+  category: "Finance",
+  outcome: "Complete investment committee memorandum and 4-tier red-flag risk matrix.",
+  setupMinutes: 5,
+  featured: true,
+  manifest: "teams/deal-team/deal-team.mausteam.json",
+  readme: "teams/deal-team/README.md",
+  members: 9,
+  skills: [
+    "teams/deal-team/skills/dd-checklist-by-stage/SKILL.md",
+    "teams/deal-team/skills/red-flag-scoring-rubric/SKILL.md",
+    "teams/deal-team/skills/ic-memo-template/SKILL.md",
+    "teams/deal-team/skills/data-room-review-checklist/SKILL.md",
+    "teams/deal-team/skills/company-profile-format/SKILL.md",
+  ],
+  requires: { apps: [] },
+};
+
+export function getBuiltinDealTeamPackage(): PackageDocument {
+  const filePath = join(__teamLibDir, "../shared/presets/deal-team.json");
+  if (!existsSync(filePath)) {
+    throw Object.assign(new Error("Deal Team package preset not found"), { status: 404 });
+  }
+  const content = JSON.parse(readFileSync(filePath, "utf8"));
+  return parsePackageDocument(content, { trust: "file" });
+}
 
 const MAX_CATALOG_BYTES = 256_000;
 const MAX_MANIFEST_BYTES = 1_000_000;
@@ -155,7 +190,22 @@ async function fetchText(url: string, maxBytes: number, fetcher: Fetcher): Promi
 }
 
 export async function fetchTeamCatalog(fetcher: Fetcher = fetch): Promise<TeamCatalog> {
-  return parseTeamCatalog(await fetchJson(TEAM_LIBRARY_CATALOG_URL, MAX_CATALOG_BYTES, fetcher));
+  let catalog: TeamCatalog;
+  try {
+    catalog = parseTeamCatalog(await fetchJson(TEAM_LIBRARY_CATALOG_URL, MAX_CATALOG_BYTES, fetcher));
+  } catch {
+    catalog = {
+      format: "openmaus.catalog",
+      version: 1,
+      repositoryUrl: TEAM_LIBRARY_REPOSITORY,
+      teams: [],
+    };
+  }
+  const withoutDealTeam = catalog.teams.filter((t) => t.slug !== "deal-team");
+  return {
+    ...catalog,
+    teams: [BUILTIN_DEAL_TEAM_ENTRY, ...withoutDealTeam],
+  };
 }
 
 export type ParsedShareableTeam = ParsedTeamManifest | ParsedBotPackage | PackageDocument;
@@ -175,6 +225,9 @@ async function fetchShareable(url: string, fetcher: Fetcher): Promise<ParsedShar
 
 export async function fetchLibraryTeam(slug: string, fetcher: Fetcher = fetch): Promise<ParsedShareableTeam> {
   if (!/^[a-z0-9][a-z0-9-]*$/.test(slug)) throw new Error("That team name is invalid");
+  if (slug === "deal-team") {
+    return getBuiltinDealTeamPackage();
+  }
   const catalog = await fetchTeamCatalog(fetcher);
   const entry = catalog.teams.find((team) => team.slug === slug);
   if (!entry) throw Object.assign(new Error("That library team was not found"), { status: 404 });

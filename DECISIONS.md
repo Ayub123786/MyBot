@@ -67,3 +67,17 @@ This log records non-trivial decisions made during the MyBot transformation, rat
   - Generated PNG icon assets at 1024x1024, 512x512, 192x192, and 180x180 via `@resvg/resvg-js`.
 - **Why**: The product is targeted at private equity, VC, and investment committee workflows where clarity, compact density, and authoritative aesthetics are required.
 - **Alternatives**: Keeping pastel/casual themes; rejected as contradictory to institutional user requirements.
+
+---
+
+### Decision 9: Deal Team Preset and Institutional Diligence Skills (Phase 3)
+- **Decision**: Implemented the "Deal Team" preset team as an importable `openmaus.package` v2 package at `shared/presets/deal-team.json`:
+  - 9 specialist agents: Deal Lead (Chief of Staff, leader), Sourcing Scout, Market & Competitor Analyst, Financial Analyst, Legal & Compliance Reviewer, Founder & Team Checker, Technical Diligence Analyst, Risk Officer (Red Team), and Memo Writer.
+  - Distinct generated SVG geometric avatars rendered into 128x128 PNG base64 images complying strictly with `avatarSchema` in `shared/package-format.ts`.
+  - 5 core institutional due diligence skills: `dd-checklist-by-stage`, `red-flag-scoring-rubric`, `ic-memo-template`, `data-room-review-checklist`, and `company-profile-format`.
+  - Injected mandatory prompt rules across every bot's soul: citations required, explicit confidence levels [High/Med/Low], zero inventions ("not found" instead of guesses), separation of facts vs assumptions vs opinions, and internal decision support disclaimers.
+  - Wired into `server/team-library.ts` as the top featured preset in Templates with offline fallback, into `server/presets.ts` for automatic preset registration on initial start, and into first-run onboarding (`WelcomeBring.tsx`).
+  - Set approvals to default to "ask", routines paused, and imported connections off.
+- **Why**: Provides out-of-the-box institutional diligence readiness for VC and PE teams without requiring custom server protocol changes.
+- **Alternatives**: Hardcoding bots as non-exportable database records; rejected because using the existing openmaus.package format allows clean export, sharing, and standard team import workflows.
+

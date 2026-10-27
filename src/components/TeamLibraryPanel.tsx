@@ -92,11 +92,13 @@ export function TeamLibraryPanel({
   onImported,
   returnFocusRef,
   initialUrl,
+  initialSlug,
 }: {
   onClose: () => void;
   onImported: (result: TeamImportResult) => void;
   returnFocusRef: React.RefObject<HTMLButtonElement | null>;
   initialUrl?: string;
+  initialSlug?: string;
 }) {
   const { state, dispatch } = useStore();
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -275,6 +277,14 @@ export function TeamLibraryPanel({
     void loadGithubUrl(initialUrl);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialUrl]);
+
+  useEffect(() => {
+    if (!initialSlug) return;
+    tabChosen.current = true;
+    setTab("explore");
+    void loadLibraryTeam({ slug: initialSlug } as TeamCatalogEntry);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialSlug]);
 
   const importTeam = async () => {
     if (!pending) return;

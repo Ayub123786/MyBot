@@ -2,6 +2,7 @@
 import { randomUUID } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { z } from "zod";
 
 import { writeFileAtomic } from "./atomic.ts";
@@ -179,7 +180,7 @@ export function createPresetStore(file: string = PRESETS_FILE): PresetStore {
     canonicalJson(storedPresetObject(row)) === canonicalJson(storedPresetObject(candidate)) &&
     canonicalJson(usedContent(row, state.content[row.installId])) === canonicalJson(usedContent(candidate, content));
 
-  return {
+  const store: PresetStore = {
     list: () => load().presets,
     resolve(id) {
       const state = load();
@@ -270,6 +271,21 @@ export function createPresetStore(file: string = PRESETS_FILE): PresetStore {
       return "removed";
     },
   };
+
+  if (file === PRESETS_FILE && !existsSync(file)) {
+    try {
+      const currentDir = typeof __dirname !== "undefined" ? __dirname : dirname(fileURLToPath(import.meta.url));
+      const dealTeamPath = join(currentDir, "../shared/presets/deal-team.json");
+      if (existsSync(dealTeamPath)) {
+        const pkgDoc = parsePackageDocument(JSON.parse(readFileSync(dealTeamPath, "utf8")), { trust: "file" });
+        store.register(pkgDoc, { source: "file", installId: "deal-team-builtin" });
+      }
+    } catch {
+      // Ignore if preset fails to seed
+    }
+  }
+
+  return store;
 }
 
 function usedContent(row: StoredPreset, content: InstallContent | undefined): InstallContent {
