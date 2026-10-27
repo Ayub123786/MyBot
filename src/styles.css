@@ -132,49 +132,34 @@
   /* Team map: a card's border acknowledging a message sent to it from the map. */
   --animate-sent-border: sent-border 1.2s ease-out forwards;
 
-  /* Defaults = Midnight. Kept here so the app is never unstyled. */
-  --color-app: #070707;
-  --color-panel: #111111;
-  --color-raised: #2f2f2f;
-  --color-raised-hover: #3d3d3d;
-  /* the composer pill. Every skin but Daylight paints it in `raised`; there
-     it is the page colour with a hairline ring, so it needs a tone (and a
-     ring, transparent everywhere else) of its own. */
-  --color-composer: #2f2f2f;
+  /* Institutional finance dark theme (Bloomberg/Linear aesthetic) */
+  --color-app: #06101e;
+  --color-panel: #0b2447;
+  --color-raised: #12335f;
+  --color-raised-hover: #173f75;
+  --color-composer: #0b2447;
   --color-composer-ring: transparent;
-  /* popover and right-click menus. Same story as the composer: every skin
-     but Daylight paints them in `card`, which there is the bot's bubble and
-     a shade too grey for a menu. */
-  --color-menu: #262626;
-  --color-card: #262626;
-  --color-inset: #191919;
-  /* a control ON a card. The dark skins take their `raised` value, so this
-     is a no-op for them; the light skins need a tone of their own, because
-     there `raised` is pure white and a card is too. */
-  --color-control: #2f2f2f;
-  --color-hairline: #333333;
-  --color-ink: #fcfcfc;
-  --color-ink-secondary: #fcfcfc99;
-  /* quiet text: timestamps, hints, placeholders, calendar hours. It used to
-     be `text-ink-secondary/70`, which fades an ink already tuned close to
-     AA and landed at 2.2–4:1. Each skin sets this to the quietest ink that
-     still clears 4.5:1 on every text surface, raised-hover included; on the
-     light skins that leaves little room below the secondary ink, so there
-     size carries the hierarchy. Measured by pnpm check:contrast. */
-  --color-ink-tertiary: #fcfcfc90;
-  --color-accent: #1084fe;
-  --color-accent-border: #459ffe;
-  /* the ring a keyboard user follows; sits on the accent so focus reads as
-     "the app is talking to you", not as a browser default */
-  --color-focus: #459ffe;
-  --color-accent-text: #7fc0ff;
-  --color-bubble-user: #5a5a5a;
-  --color-success: #38d591;
-  --color-danger: #ff5667;
-  --color-warning: #ff9800;
+  --color-menu: #0e294f;
+  --color-card: #0b2447;
+  --color-inset: #08172c;
+  --color-control: #143767;
+  --color-hairline: #1e4479;
+  --color-ink: #f8fafc;
+  --color-ink-secondary: #a2b4cd;
+  --color-ink-tertiary: #97acc6;
+  --color-accent: #e6b800;
+  --color-accent-border: #f5c518;
+  --color-focus: #e6b800;
+  --color-accent-text: #fcd34d;
+  --color-bubble-user: #163a6c;
+  --color-success: #10b981;
+  --color-danger: #f87171;
+  --color-warning: #fbbf24;
 
   --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text",
     "Segoe UI", system-ui, sans-serif;
+  --radius-lg: 4px;
+  --radius-xl: 6px;
 
   /* Add a rounded transition class.
      For situations where multiple transition-properties need to be set simultaneously,
@@ -206,73 +191,63 @@
 
 :root {
   --code-color-scheme: dark;
-  /* ink carried by a filled accent / danger surface (see the rule at the
-     bottom of this file, which is what makes them take effect) */
-  --color-accent-ink: #ffffff;
-  --color-danger-ink: #ffffff;
-  /* ink carried by the user's own bubble. A hex rather than the ink token so
-     the contrast check can measure it; every dark skin repeats its ink here. */
-  --color-bubble-user-ink: #fcfcfc;
-  --color-success-ink: #072114;
-  --color-scrollbar: #3d3d3d;
-  /* second speed line of the mascot — contrasts against the app ground */
-  --color-maus-line: #fcfcfc;
+  /* ink carried by a filled accent / danger surface */
+  --color-accent-ink: #06101e;
+  --color-danger-ink: #06101e;
+  /* ink carried by the user's own bubble */
+  --color-bubble-user-ink: #f8fafc;
+  --color-success-ink: #06101e;
+  --color-scrollbar: #1e4479;
+  --color-maus-line: #a2b4cd;
 }
 
 /* ── Midnight ──────────────────────────────────────────────────────────────
-   The upstream palette, pixel-sampled from the real Grok app. Repeated here
-   (rather than relying on the `@theme` defaults) so that a `[data-skin]`
-   subtree can switch *back* to it — the picker needs that.
-
-   Two upstream contrast gaps are preserved deliberately, because this skin's
-   job is to be the original: white on the accent fill measures 3.65:1 and
-   white on the danger fill 3.32:1, both short of AA for the 13–15px labels
-   they carry. Atelier and Foundry fix this via --color-accent-ink.
+   Institutional Finance Dark: Deep navy ground, gold accents, crisp borders.
    ───────────────────────────────────────────────────────────────────────── */
 [data-skin="midnight"] {
   --code-color-scheme: dark;
-  --color-app: #070707;
-  --color-panel: #111111;
-  --color-raised: #2f2f2f;
-  --color-raised-hover: #3d3d3d;
-  --color-composer: #2f2f2f;    /* = raised: unchanged */
+  --color-app: #06101e;
+  --color-panel: #0b2447;
+  --color-raised: #12335f;
+  --color-raised-hover: #173f75;
+  --color-composer: #0b2447;
   --color-composer-ring: transparent;
-  --color-card: #262626;
-  --color-menu: #262626;    /* = card: unchanged */
-  --color-inset: #191919;
-  --color-control: #2f2f2f;       /* = raised: Midnight is unchanged */
-  --color-hairline: #333333;
-  --color-ink: #fcfcfc;
-  --color-ink-secondary: #fcfcfc99;
-  --color-ink-tertiary: #fcfcfc90;
-  --color-accent: #1084fe;
-  --color-accent-border: #459ffe;
-  --color-accent-text: #7fc0ff;
-  --color-accent-ink: #ffffff;
-  --color-bubble-user: #5a5a5a;
-  --color-bubble-user-ink: #fcfcfc;   /* = ink: unchanged */
-  --color-success: #38d591;
-  --color-danger: #ff5667;
-  --color-danger-ink: #ffffff;
-  --color-success-ink: #072114;
-  --color-warning: #ff9800;
-  --color-scrollbar: #3d3d3d;
-  --color-maus-line: #fcfcfc;
+  --color-card: #0b2447;
+  --color-menu: #0e294f;
+  --color-inset: #08172c;
+  --color-control: #143767;
+  --color-hairline: #1e4479;
+  --color-ink: #f8fafc;
+  --color-ink-secondary: #a2b4cd;
+  --color-ink-tertiary: #97acc6;
+  --color-accent: #e6b800;
+  --color-accent-border: #f5c518;
+  --color-accent-text: #fcd34d;
+  --color-accent-ink: #06101e;
+  --color-bubble-user: #163a6c;
+  --color-bubble-user-ink: #f8fafc;
+  --color-success: #10b981;
+  --color-danger: #f87171;
+  --color-danger-ink: #06101e;
+  --color-success-ink: #06101e;
+  --color-warning: #fbbf24;
+  --color-scrollbar: #1e4479;
+  --color-maus-line: #a2b4cd;
 
   --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text",
     "Segoe UI", system-ui, sans-serif;
-  --radius-lg: 0.5rem;
-  --radius-xl: 0.75rem;
-  --identity-green: #009957;
-  --identity-blue: #377FE6;
-  --identity-red: #D94B52;
-  --identity-orange: #E78531;
-  --identity-purple: #8963cc;
-  --identity-cyan: #0EA5C6;
-  --identity-pink: #D84F8B;
-  --identity-yellow: #D8A729;
-  --identity-teal: #01A492;
-  --identity-coral: #E5634E;
+  --radius-lg: 4px;
+  --radius-xl: 6px;
+  --identity-green: #10b981;
+  --identity-blue: #3b82f6;
+  --identity-red: #ef4444;
+  --identity-orange: #f97316;
+  --identity-purple: #8b5cf6;
+  --identity-cyan: #06b6d4;
+  --identity-pink: #ec4899;
+  --identity-yellow: #e6b800;
+  --identity-teal: #14b8a6;
+  --identity-coral: #f43f5e;
 }
 
 /* ── Atelier ───────────────────────────────────────────────────────────────
@@ -725,52 +700,52 @@
    ───────────────────────────────────────────────────────────────────────── */
 [data-skin="meadow"] {
   --code-color-scheme: light;
-  --color-app: #ffffff;           /* the thread */
-  --color-panel: #f6f8f6;         /* sidebar */
-  --color-raised: #e9eeea;
-  --color-raised-hover: #d6efdf;  /* the selected row, mint */
-  --color-card: #f1f5f2;          /* what a bot says */
-  --color-inset: #e7ece8;         /* the search field */
-  --color-control: #dce3de;       /* a chip on a card */
-  --color-hairline: #c9d3cc;
+  --color-app: #f1f5f9;           /* crisp institutional slate */
+  --color-panel: #f8fafc;         /* sidebar */
+  --color-raised: #ffffff;        /* card & content */
+  --color-raised-hover: #e2e8f0;  /* selected row */
+  --color-card: #ffffff;          /* bot bubble */
+  --color-inset: #eef2f6;         /* field inset */
+  --color-control: #d8e1ec;       /* control on card */
+  --color-hairline: #a9b7c8;
 
-  --color-ink: #0f1a13;
-  --color-ink-secondary: #4d5a52;
-  --color-ink-tertiary: #4f5c54;
+  --color-ink: #0b2447;           /* institutional deep navy text */
+  --color-ink-secondary: #475569; /* neutral slate */
+  --color-ink-tertiary: #4c596a;
 
-  --color-accent: #1a7a48;
-  --color-accent-border: #1f8a52;
-  --color-accent-text: #176b3f;
-  --color-focus: #1a7a48;
+  --color-accent: #8c6b00;        /* institutional gold for AA compliance */
+  --color-accent-border: #a88100;
+  --color-accent-text: #7a5d00;
+  --color-focus: #8c6b00;
   --color-accent-ink: #ffffff;
   --color-composer: #ffffff;
-  --color-composer-ring: #e3e9e4;
+  --color-composer-ring: #cbd5e1;
   --color-menu: #ffffff;
-  --color-bubble-user: #0f1a13;   /* your own messages, inverted */
+  --color-bubble-user: #0b2447;   /* deep navy user bubble */
   --color-bubble-user-ink: #ffffff;
 
-  --color-success: #1a7a48;
-  --color-danger: #c02b3a;
+  --color-success: #047857;       /* emerald */
+  --color-danger: #b91c1c;
   --color-danger-ink: #ffffff;
   --color-success-ink: #ffffff;
-  --color-warning: #8a5a00;
-  --color-scrollbar: #c3cdc6;
-  --color-maus-line: #5a675f;
+  --color-warning: #854d0e;
+  --color-scrollbar: #a9b7c8;
+  --color-maus-line: #475569;
 
   --font-sans: "Inter", -apple-system, blinkmacsystemfont, "SF Pro Text",
     "Segoe UI", system-ui, sans-serif;
-  --radius-lg: 10px;
-  --radius-xl: 16px;
-  --identity-green: #00884e;
-  --identity-blue: #2573e4;
-  --identity-red: #d63f47;
-  --identity-orange: #b65f15;
-  --identity-purple: #8057C8;
-  --identity-cyan: #0b819b;
-  --identity-pink: #d3397d;
-  --identity-yellow: #93721b;
-  --identity-teal: #018577;
-  --identity-coral: #db3a20;
+  --radius-lg: 4px;
+  --radius-xl: 6px;
+  --identity-green: #047857;
+  --identity-blue: #1d4ed8;
+  --identity-red: #b91c1c;
+  --identity-orange: #c2410c;
+  --identity-purple: #7e22ce;
+  --identity-cyan: #0e7490;
+  --identity-pink: #be185d;
+  --identity-yellow: #854d0e;
+  --identity-teal: #0f766e;
+  --identity-coral: #c2410c;
 }
 
 /* ── Pop ──────────────────────────────────────────────────────────────────

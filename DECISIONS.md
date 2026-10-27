@@ -55,3 +55,15 @@ This log records non-trivial decisions made during the MyBot transformation, rat
 - **Decision**: Implement a one-time copy migration on startup in `electron/main.mjs` and server initialization: if `~/.mybot` does not exist and `~/.openmausbot` exists, copy contents recursively without deleting the legacy directory.
 - **Why**: Ensures backward compatibility for existing users while guaranteeing zero data loss.
 - **Alternatives**: Renaming/moving the directory; rejected because moving could break previous installations or rollback scenarios.
+
+---
+
+### Decision 8: Institutional Theme and Token Centralization (Phase 2)
+- **Decision**: Centralized design tokens in `src/styles.css` using Tailwind v4 `@theme` and custom properties:
+  - Primary deep navy `#0B2447`, accent gold `#E6B800` (8.26:1 contrast ratio against navy), positive emerald `#10B981` (6.1:1 contrast ratio), and neutral slate grays.
+  - Reduced border radii to sharper corners (`--radius-lg: 4px; --radius-xl: 6px`) to match the Linear/Bloomberg Terminal density aesthetic.
+  - Verified 100% WCAG AA contrast compliance across all 52 pairs in both dark and light modes via `scripts/check-skin-contrast.mjs`.
+  - Replaced playful copy in `src/locales/en.json` with professional financial due diligence and deal room terminology.
+  - Generated PNG icon assets at 1024x1024, 512x512, 192x192, and 180x180 via `@resvg/resvg-js`.
+- **Why**: The product is targeted at private equity, VC, and investment committee workflows where clarity, compact density, and authoritative aesthetics are required.
+- **Alternatives**: Keeping pastel/casual themes; rejected as contradictory to institutional user requirements.

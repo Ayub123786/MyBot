@@ -5,13 +5,13 @@ This document tracks items that require external resources, credentials, or cust
 ## 1. Binary Icon & Logo Replacements
 The vector icons (`build/icon.svg` and `public/app-icon.svg`) have been updated with the neutral, professional MyBot geometric monogram. To produce official binary icon files, render and replace:
 
-- [ ] `build/icon-1024.png` (1024x1024 master icon)
+- [x] `build/icon-1024.png` (1024x1024 master icon - rendered from new palette)
 - [ ] `build/icon.ico` (multi-resolution Windows icon for NSIS installer and executable)
 - [ ] `build/icon.icns` (macOS icon bundle, deferred/optional for Windows target)
 - [ ] `build/icon.iconset/*` (individual macOS icon sizes)
-- [ ] `public/app-icon-192.png` (192x192 web/PWA icon)
-- [ ] `public/app-icon-512.png` (512x512 web/PWA icon)
-- [ ] `public/apple-touch-icon.png` (180x180 iOS/Safari touch icon)
+- [x] `public/app-icon-192.png` (192x192 web/PWA icon - rendered from new palette)
+- [x] `public/app-icon-512.png` (512x512 web/PWA icon - rendered from new palette)
+- [x] `public/apple-touch-icon.png` (180x180 iOS/Safari touch icon - rendered from new palette)
 
 ## 2. Code-Signing & Packaging (Windows)
 - [ ] Obtain a Windows Code-Signing Certificate (EV or Standard) if distributing outside internal team.
