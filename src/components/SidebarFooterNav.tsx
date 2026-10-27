@@ -1,4 +1,4 @@
-import { FolderOpen, Puzzle, Sun, UsersRound, Zap } from "lucide-react";
+import { Briefcase, FolderOpen, Puzzle, Sun, UsersRound, Zap } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { useAppTriggers } from "@/lib/app-triggers";
@@ -67,8 +67,9 @@ export function SidebarTodayNav({ density }: { density: SidebarDensity }) {
   const { state, dispatch } = useStore();
   const iconsOnly = density === "icons";
   const active = state.activeView === "today";
+  const dealsActive = state.activeView === "deals";
   return (
-    <div className={iconsOnly ? "flex justify-center px-2 pb-1" : "px-2 pb-2"}>
+    <div className={iconsOnly ? "flex flex-col items-center gap-1 px-2 pb-1" : "flex flex-col gap-1 px-2 pb-2"}>
       <NavRow
         id="today"
         label={t("sidebar.nav.today")}
@@ -76,6 +77,14 @@ export function SidebarTodayNav({ density }: { density: SidebarDensity }) {
         active={active}
         icon={(on) => <Sun size={iconsOnly ? 20 : 18} className={on ? "text-accent" : "text-ink-secondary"} />}
         onClick={() => dispatch({ type: "showToday" })}
+      />
+      <NavRow
+        id="deals"
+        label="Deals & Data Room"
+        iconsOnly={iconsOnly}
+        active={dealsActive}
+        icon={(on) => <Briefcase size={iconsOnly ? 20 : 18} className={on ? "text-accent" : "text-ink-secondary"} />}
+        onClick={() => dispatch({ type: "showDeals" })}
       />
     </div>
   );

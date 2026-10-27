@@ -52,6 +52,11 @@ export function createMcpServerRoutes(deps: McpServerRouteDeps): RouteHandler {
       return json(res, 200, withHasApps(mcpServerResponse()));
     }
 
+    if (method === "GET" && path === "/api/mcp/templates") {
+      const { DILIGENCE_MCP_TEMPLATES } = await import("../../shared/mcp-templates.ts");
+      return json(res, 200, { templates: DILIGENCE_MCP_TEMPLATES });
+    }
+
     const mcpTest = /^\/api\/mcp\/servers\/([a-z][a-z0-9_-]{0,31})\/test$/.exec(path);
     if (method === "POST" && mcpTest) {
       const raw = cfg.mcpServers?.[mcpTest[1]];

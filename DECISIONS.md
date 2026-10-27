@@ -81,3 +81,16 @@ This log records non-trivial decisions made during the MyBot transformation, rat
 - **Why**: Provides out-of-the-box institutional diligence readiness for VC and PE teams without requiring custom server protocol changes.
 - **Alternatives**: Hardcoding bots as non-exportable database records; rejected because using the existing openmaus.package format allows clean export, sharing, and standard team import workflows.
 
+---
+
+### Decision 10: Deals View, Data Room Isolation, and Diligence Integrations (Phase 4)
+- **Decision**:
+  - Implemented per-deal isolation in `server/deals.ts`: Deal workspaces are housed under `~/.mybot/deals/<deal-id>/`. The server inspects the `x-deal-scope` header and strictly forbids cross-deal access (throws 403 `DealIsolationError`). In addition, all resolved file paths are asserted against the root deal directory to prevent path traversal attacks.
+  - Implemented multi-format text & structured table extractor (`server/deal-document-extractor.ts`) supporting PDF, DOCX, XLSX, CSV, PPTX, and TXT with pure TypeScript ZIP parsing and Papaparse.
+  - Implemented pure TypeScript Word (.docx) OpenXML packaging using `node:zlib` `deflateRawSync` and printable HTML memo export with institutional styling.
+  - Seeded initial realistic sample deal: `demo-apexflow-ai` (ApexFlow AI Series A diligence data, metrics, pitch deck, cap table, financial model, findings, and IC memo).
+  - Built comprehensive `DealsView.tsx` with Overview metrics, drag-and-drop Data Room with live extraction status, Deal Team chat dispatcher, card-based Findings dashboard (severity, confidence, facts/assumptions/opinions tags), and IC Memo viewer with one-click Word/PDF export.
+  - Pre-configured disabled diligence MCP servers in `shared/mcp-templates.ts` and `server/config.ts` (Tavily search, Exa neural search, SEC EDGAR, OpenCorporates, and enterprise placeholders for Crunchbase and PitchBook; no DocuSign).
+- **Why**: Investment teams handle highly confidential deal rooms across multiple competing portfolio companies or acquisition targets. Absolute per-deal isolation and instant structured parsing are mandatory.
+- **Alternatives**: Using third-party heavy C++ binaries or external cloud extraction services; rejected to keep the app 100% locally self-contained, fast, and privacy-preserving.
+

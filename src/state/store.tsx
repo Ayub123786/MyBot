@@ -598,7 +598,7 @@ export interface AppState {
   liveCallVersion: number;
   liveCallLookupSeq: number;
   selectedId: string;
-  activeView: "chat" | "team-map" | "routines" | "files" | "today";
+  activeView: "chat" | "team-map" | "routines" | "files" | "today" | "deals";
   /** Folders a finished move left on this computer, for Files to offer sharing. */
   filesSuggest: string[] | null;
   routines: Routine[];
@@ -741,7 +741,7 @@ export type Action =
   | { type: "sections"; sections: string[] }
   | { type: "sectionDeleted"; section: string; sections: string[] }
   | { type: "showRoutines"; section?: "schedule" | "logs"; view?: "calendar" | "list"; botId?: string; routineId?: string; runStatus?: RoutineRunStatusFilter }
-  | { type: "showTeamMap" } | { type: "showToday" }
+  | { type: "showTeamMap" } | { type: "showToday" } | { type: "showDeals"; dealId?: string }
   | { type: "showFiles"; suggest?: string[] }
   | { type: "showChat" }
   | { type: "routinesHydrated"; routines: Routine[]; runs: RoutineRun[] }
@@ -1090,10 +1090,10 @@ export function reducer(state: AppState, action: Action): AppState {
     case "showChat":
       return state.activeView === "chat" ? state : { ...state, activeView: "chat" };
     case "showTeamMap":
-    case "showFiles": case "showToday":
+    case "showFiles": case "showToday": case "showDeals":
       return {
         ...state,
-        activeView: action.type === "showFiles" ? "files" : action.type === "showToday" ? "today" : "team-map",
+        activeView: action.type === "showFiles" ? "files" : action.type === "showToday" ? "today" : action.type === "showDeals" ? "deals" : "team-map",
         filesSuggest: action.type === "showFiles" && action.suggest?.length ? action.suggest : null,
         settingsOpen: false, computerOpen: false, inspectorOpen: false, activityOpen: false, appSettingsOpen: false, pluginsOpen: false,
       };

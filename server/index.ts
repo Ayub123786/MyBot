@@ -603,6 +603,7 @@ import { checkedGroupResponder, createGroupRoutes } from "./routes/groups.ts";
 import { createChannelRoutes } from "./routes/channels.ts";
 import { createTaskRoutes } from "./routes/tasks.ts";
 import { createTeamRoutes } from "./routes/teams.ts";
+import { createDealRoutes } from "./routes/deals.ts";
 import { createThreadModelRoutes } from "./routes/thread-models.ts";
 import { createUndoRoutes } from "./routes/undo.ts";
 import { createDesktopViewer, desktopViewerUrl } from "./routes/desktop-viewer.ts";
@@ -13388,6 +13389,7 @@ ROUTES.push(createTeamRoutes({
   starterNotes,
   ...skillExport(skillsHost),
 }));
+ROUTES.push(createDealRoutes({ broadcast }));
 ROUTES.push(createBrowserSiteRoutes({
   target: (which, threadId) => signedInSitesTarget(which, threadId === null ? "team" : teamHost.browserAudience(threadId)),
   list: (target) => listSignedInSites(target),

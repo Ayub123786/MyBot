@@ -1,4 +1,4 @@
-import { readFileSync, mkdirSync, statSync } from "node:fs";
+import { readFileSync, mkdirSync, statSync, existsSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
@@ -6,6 +6,7 @@ import { z } from "zod";
 import { normalizeImageGenerationUrl, type ImageGenerationConfig } from "../shared/image-generation.ts";
 import { DATA_DIR_NAME } from "../shared/brand.ts";
 import { migrateDataDir } from "../shared/data-migration.ts";
+import { DEFAULT_DILIGENCE_MCP_SERVERS } from "../shared/mcp-templates.ts";
 import { botAvatarUrlSchema } from "../shared/bot-avatar.ts";
 import { writeFileAtomic } from "./atomic.ts";
 import { anthropicKeyEnv } from "./anthropic-key-env.ts";
@@ -754,6 +755,14 @@ export function ensureDirs() {
   }
   for (const dir of [DATA_DIR, EVENTS_DIR, NATIVE_DIR]) mkdirSync(dir, { recursive: true });
   migrateLegacyFeatureFlags(DATA_DIR);
+  const configFile = join(DATA_DIR, "config.json");
+  if (!process.env.OMB_DATA_DIR && !existsSync(configFile)) {
+    try {
+      writeFileSync(configFile, JSON.stringify({ mcpServers: DEFAULT_DILIGENCE_MCP_SERVERS }, null, 2), "utf8");
+    } catch {
+      // ignore
+    }
+  }
 }
 
 let lastIgnoredConfigWarning = "";

@@ -687,3 +687,26 @@ export function parseAudioRange(header: string | undefined, size: number): Audio
   if (end < start) return { kind: "none" };
   return { kind: "range", start, end: Math.min(end, size - 1) };
 }
+
+/**
+ * Deal Data Room Upload:
+ * Stores documents under ~/.mybot/deals/<deal-id>/documents/ with automatic extraction
+ * and strict per-deal isolation enforcement.
+ */
+export async function saveDealAttachment(
+  dealId: string,
+  chunks: AsyncIterable<Uint8Array>,
+  originalName: string,
+  mime: string,
+  options: { uploadId?: string; authorizedDealId?: string | null } = {},
+): Promise<import("./deals.ts").DealDocument> {
+  const { addDealDocument } = await import("./deals.ts");
+  const buffers: Buffer[] = [];
+  for await (const chunk of chunks) {
+    buffers.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk.buffer, chunk.byteOffset, chunk.byteLength));
+  }
+  const fileBytes = Buffer.concat(buffers);
+  if (fileBytes.length === 0) throw statusError(400, "Empty document upload.");
+  return addDealDocument(dealId, originalName, fileBytes, mime, options.authorizedDealId);
+}
+
