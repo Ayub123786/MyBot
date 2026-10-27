@@ -10,18 +10,24 @@
 ## Key Features
 
 - **Coordinated Deal Team**: Run 9 specialized agents in one chat workspace:
-  - **Deal Lead (Chief of Staff)**: Orchestrates due diligence and unifies findings into one IC memo.
-  - **Sourcing Scout**: Screens companies against your firm's investment thesis.
+  - **Deal Lead (Chief of Staff)**: Orchestrates due diligence, resolves conflicts, and unifies findings into one IC memo.
+  - **Sourcing Scout**: Screens companies against your firm's investment thesis and mandate.
   - **Market & Competitor Analyst**: Computes TAM/SAM/SOM, maps competitors, identifies market dynamics.
   - **Financial Analyst**: Evaluates unit economics, cap tables, burn rates, runway, and financial models.
-  - **Legal & Compliance Reviewer**: Assesses corporate structures, IP assignments, regulatory hurdles, and KYC/AML red flags.
-  - **Founder & Team Checker**: Verifies founder credentials and tracks public records and past exits.
+  - **Legal & Compliance Reviewer**: Assesses corporate structures, IP assignments, regulatory hurdles, and red flags.
+  - **Founder & Team Checker**: Verifies founder credentials, exits, and reference backgrounds.
   - **Technical Diligence Analyst**: Evaluates architecture, security posture, scalability, and technical debt.
   - **Risk Officer (Red Team)**: Aggressively red-teams deals and highlights hidden failure modes.
   - **Memo Writer**: Synthesizes facts, analysis, and debate into an institutional-grade Investment Committee (IC) memo.
-- **Isolated Deal Rooms**: Data rooms and files uploaded for one company are strictly partitioned and inaccessible to other deal workspaces.
-- **Strict Privacy & Confidentiality**: Zero unwanted telemetry. Third-party cloud tracking is completely removed. Outbound integrations require explicit human approval.
-- **Local-First & Multi-Model**: Connect your own models (Claude, OpenAI, Gemini, local models) with end-to-end local data retention under `~/.mybot`.
+- **Isolated Deal Rooms**: Data rooms and files uploaded for one company are strictly partitioned on disk (`~/.mybot/deals/<deal-id>/`), guarded by `x-deal-scope` validation and directory traversal prevention.
+- **Multi-Format Document Extraction**: Automatic text and structured table parsing for PDF, Word (`.docx`), Excel (`.xlsx`), CSV, PowerPoint (`.pptx`), and plain text.
+- **Confidentiality Mode & Financial Redaction**: Real-time regex detection and redaction for SSNs, wire routing numbers, bank accounts, credit cards, and phone numbers before model delivery.
+- **Outbound Tool Gates & Approval Floor**: Outbound actions (emails, SMS, phone calls, external account signups, wire transfers) require explicit human approval via interactive cards.
+- **Immutable Audit Trail & CSV Export**: Append-only local audit log (`~/.mybot/audit/audit.jsonl`) recording all tool calls, document accesses, prompt dispatches, and decisions, with full RFC 4180 CSV export.
+- **Investment Committee Memo Export**: Generate native Microsoft Word (`.docx`) OpenXML documents and printable PDF-ready HTML memos directly inside the application.
+- **Zero Cloud Telemetry**: PostHog and third-party analytics stripped. All operational data retained locally under `~/.mybot`.
+
+For detailed architecture and workflow guides, see [docs/institutional-diligence.md](docs/institutional-diligence.md).
 
 ---
 

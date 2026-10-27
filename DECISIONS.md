@@ -103,3 +103,15 @@ This log records non-trivial decisions made during the MyBot transformation, rat
 - **Why**: Institutional investment firms and compliance officers require hard software guards against unauthorized external actions, data room confidentiality protection, and immutable audit trails for LP reporting.
 - **Alternatives**: Relying solely on system prompts; rejected because prompt adherence cannot guarantee safety or compliance floors.
 
+---
+
+### Decision 12: Documentation, Packaging Configuration, and Delivery (Phase 6)
+- **Decision**:
+  - Authored comprehensive institutional guide in `docs/institutional-diligence.md` detailing the 9 Deal Team bots, 5 diligence skills, per-deal isolation architecture, multi-format data room extractor, confidentiality mode, outbound tool safety floor, and IC memo generation.
+  - Updated `README.md` to reflect the complete institutional product capabilities, architecture table, and installation/packaging steps.
+  - Verified `electron-builder.yml` Windows NSIS configuration (targets `nsis` x64, one-click installer, icon assets, extra resources, zero auto-update).
+  - Validated frontend production compilation (`vite build` passing, bundling cleanly into `dist/`) and server bundling (`scripts/bundle-server.mjs` creating `dist-server/index.js` in 6.7s).
+  - Maintained full Apache-2.0 licensing and copyright attribution in `NOTICE`, `LICENSE`, `LICENSING.md`, and all documentation.
+- **Why**: Completes institutional deliverables and provides production packaging readiness for Windows-targeted investment teams.
+- **Alternatives**: None needed.
+
