@@ -1,0 +1,97 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Worktrees & VCS
+.worktrees/
+
+# Production & Build outputs
+dist/
+dist-electron/
+dist-native/
+dist-companion/
+dist-server/
+release/
+build/Release/
+out/
+
+# TypeScript & Cache
+*.tsbuildinfo
+.eslintcache
+.stylelintcache
+.turbo/
+
+# Environment and secrets
+.env
+.env.*
+.env.local
+.env.*.local
+.env.development
+.env.test
+.env.production
+!.env.example
+!deploy/.env.example
+!deploy/podman/.env.example
+*.local
+.dev.vars
+.dev.vars.*
+!cloudflare/control-plane/.dev.vars.example
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Cloud & Serverless
+.wrangler/
+cloudflare/composio-broker/worker-configuration.d.ts
+cloudflare/control-plane/worker-configuration.d.ts
+.vercel/
+.pi/
+
+# Scratch & temporary
+.omb-scratch/
+.tmpexp/
+
+# Operating System files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+
+# IDE & Editor files
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Electron resources
+electron/resources/speech-helper
+electron/resources/OpenMausBot Speech.app
+electron/resources/OpenMausBot Recorder.app
+
+# Release signing material & Certificates
+*.jks
+*.keystore
+*.p12
+*.pem
+*.key
+*.crt
+*.cert
+
