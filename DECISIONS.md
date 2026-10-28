@@ -143,4 +143,21 @@ This log records non-trivial decisions made during the MyBot transformation, rat
   - In `sync-published-release.yml`, completely disabled mirror sync jobs (`if: false`).
   - Windows packaging workflow remains artifact-only with `--publish never`.
 - **Why**: Prevents accidental push attempts to upstream author repositories, isolates releases to the self-contained repository, and prevents unreviewed automatic release publishing.
-- **Alternatives**: Maintaining an active mirror to an external fork; rejected because downstream institutional builds must remain self-contained.
+
+---
+
+### Decision 17: Removal of Pro and Cloud Upsell Entry Points from UI
+- **Decision**:
+  - Removed `onAddCloud` and `onSignIn` callbacks from `<CloudAccountSettings />` in `src/components/SettingsModal.tsx`. Without `onAddCloud`, `addCloudButton` (which offered "Start free trial" / "Upgrade to Pro") is suppressed from the Settings interface.
+  - Verified `proIntroduction` in `SettingsModal.tsx` (`general` settings) was removed in baseline commit `14a4a98` and confirmed absent.
+  - Inspected all onboarding beats in `src/components/onboarding/beats/`:
+    - `HelloBeat.tsx`: Profile setup only; zero Pro/Cloud upsells.
+    - `EnginesBeat.tsx`: Local/custom engine setup only; zero Pro/Cloud upsells.
+    - `ImportBeat.tsx`: Tool import only; zero Pro/Cloud upsells.
+    - `PermissionsBeat.tsx`: Voice/system permissions only; zero Pro/Cloud upsells.
+    - `PhoneBeat.tsx`: Direct pairing only; zero Pro/Cloud upsells.
+    - `MeetYourBotBeat.tsx`: Bot introduction; zero Pro/Cloud upsells.
+    - `CloudBeat.tsx`: Offers Cloud during onboarding; guarded by `useCloudBeatOffer(hosted, cloudOffer)` which checks `bridge.offer()`. Because `CLOUD_ORIGIN` is empty string (`""`), `offer()` resolves to `null` and `CloudBeat` is never rendered during onboarding.
+  - Updated assertions in `src/components/CloudAccountSettings.test.ts` and `src/components/onboarding/beats/CloudBeat.test.ts` from legacy brand ("MausBot Cloud" / "OpenMausBot") to current brand ("MyBot Cloud" / "MyBot"), confirming all 64 tests across affected test suites pass cleanly.
+- **Why**: Eliminates consumer cloud upsell noise and preserves a clean, self-hosted, institutional deployment experience.
+- **Alternatives**: Completely deleting `CloudAccountSettings.tsx`; rejected because users connecting a self-hosted cloud instance in enterprise deployments still need account status inspection.
