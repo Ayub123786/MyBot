@@ -134,6 +134,13 @@ This log records non-trivial decisions made during the MyBot transformation, rat
 - **Why**: Eliminates implicit dependencies or data leakage to legacy upstream services, ensuring self-hosted privacy and brand consistency throughout runtime and tests.
 - **Alternatives**: Retaining upstream fallbacks as opt-in defaults; rejected because enterprise and institutional diligence mandates clean air-gapping by default.
 
+---
 
-
-
+### Decision 16: Decouple Workflows from Upstream Repos and Disable Publishing
+- **Decision**:
+  - Removed all upstream repository references (`milind-soni/openmausbot-releases`) and upstream owner constraints from `.github/workflows/package-win.yml`, `.github/workflows/release.yml`, and `.github/workflows/sync-published-release.yml`.
+  - In `release.yml`, removed legacy mirror synchronization steps and disabled the automated publish step (`if: false`).
+  - In `sync-published-release.yml`, completely disabled mirror sync jobs (`if: false`).
+  - Windows packaging workflow remains artifact-only with `--publish never`.
+- **Why**: Prevents accidental push attempts to upstream author repositories, isolates releases to the self-contained repository, and prevents unreviewed automatic release publishing.
+- **Alternatives**: Maintaining an active mirror to an external fork; rejected because downstream institutional builds must remain self-contained.
