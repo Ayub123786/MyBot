@@ -122,4 +122,12 @@ This log records non-trivial decisions made during the MyBot transformation, rat
 - **Why**: Node.js 24 running under `--experimental-strip-types` cannot resolve `.js` specifiers when only `.ts` source files exist in the repository without precompiled outputs.
 - **Alternatives**: Running a pre-compile step before dev server launch; rejected because direct TypeScript execution is the repository's established dev workflow.
 
+---
+
+### Decision 14: Outbound Action Safety Floor across All Approval Modes
+- **Decision**: In `server/auto-approve.ts`, evaluate `if (isOutboundTool(tool))` before checking `if (mode === "full")`. Expand `SENT_NOUNS` in `shared/outbound.ts` to include CRM entities (`CONTACT`, `LEAD`, `CUSTOMER`).
+- **Why**: Institutional investment diligence requires that outbound actions (emails, Slack messages, CRM updates, wire disbursements) strictly require explicit human confirmation across EVERY mode, preventing accidental or automated external data transmission.
+- **Alternatives**: Allowing full-access bypass; rejected because institutional compliance strictly forbids unmonitored outbound communication.
+
+
 

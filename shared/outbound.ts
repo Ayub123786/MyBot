@@ -61,6 +61,9 @@ const SENT_NOUNS = new Set([
   "INVITATION",
   "WIRE",
   "TRANSACTION",
+  "CONTACT",
+  "LEAD",
+  "CUSTOMER",
 ]);
 
 /** A read verb first means the rest of the name is what is being read:

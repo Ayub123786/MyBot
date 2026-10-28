@@ -97,23 +97,52 @@ describe("Phase 5: Outbound Tool Gates & Safety Floor", () => {
     }
   });
 
-  it("triggers outbound-guard verdict requiring human approval in EVERY mode including full access", () => {
-    const verdict = autoVerdict("auto", "SENDGRID_EMAIL");
-    expect(verdict.approve).toBeNull();
-    expect(verdict.source).toBe("outbound-guard");
+  it("requires human approval for outbound tools across EVERY mode: full, auto, and ask", () => {
+    const outboundSamples = [
+      { name: "email", tool: "GMAIL_SEND_EMAIL" },
+      { name: "Slack post", tool: "SLACK_POST_MESSAGE" },
+      { name: "CRM write", tool: "HUBSPOT_ADD_CONTACT" },
+      { name: "external share", tool: "GOOGLE_DRIVE_SHARE_FILE" },
+    ];
 
-    const wireVerdict = autoVerdict("auto", "MERCURY_WIRE_FUNDS");
-    expect(wireVerdict.approve).toBeNull();
-    expect(wireVerdict.source).toBe("outbound-guard");
+    for (const { name, tool } of outboundSamples) {
+      expect(isOutboundTool(tool), `${name} (${tool}) must be recognized as outbound`).toBe(true);
 
-    // Full access mode MUST also require human approval for outbound tools
-    const fullVerdict = autoVerdict("full", "SENDGRID_EMAIL");
-    expect(fullVerdict.approve).toBeNull();
-    expect(fullVerdict.source).toBe("outbound-guard");
+      // 1. Full mode must NOT bypass the outbound guard
+      const full = autoVerdict("full", tool);
+      expect(full.approve, `Full mode must require approval for ${name}`).toBeNull();
+      expect(full.source).toBe("outbound-guard");
 
-    const fullWireVerdict = autoVerdict("full", "MERCURY_WIRE_FUNDS");
-    expect(fullWireVerdict.approve).toBeNull();
-    expect(fullWireVerdict.source).toBe("outbound-guard");
+      // 2. Auto mode must require approval
+      const auto = autoVerdict("auto", tool);
+      expect(auto.approve, `Auto mode must require approval for ${name}`).toBeNull();
+      expect(auto.source).toBe("outbound-guard");
+
+      // 3. Ask mode must require approval
+      const ask = autoVerdict("ask", tool);
+      expect(ask.approve, `Ask mode must require approval for ${name}`).toBeNull();
+      expect(ask.source).toBe("outbound-guard");
+    }
+  });
+
+  it("handles non-outbound tools appropriately across full, auto, and ask modes", () => {
+    const nonOutboundTool = "GMAIL_CREATE_EMAIL_DRAFT";
+    expect(isOutboundTool(nonOutboundTool)).toBe(false);
+
+    // Full access approves non-outbound tools automatically
+    const full = autoVerdict("full", nonOutboundTool);
+    expect(full.approve).toBe(`approved ${nonOutboundTool} (full access)`);
+    expect(full.source).toBe("full-access");
+
+    // Auto mode without explicit allowlist gates native approval
+    const auto = autoVerdict("auto", nonOutboundTool);
+    expect(auto.approve).toBeNull();
+    expect(auto.source).toBe("native-approval");
+
+    // Ask mode requires human prompt
+    const ask = autoVerdict("ask", nonOutboundTool);
+    expect(ask.approve).toBeNull();
+    expect(ask.source).toBe("no-grant");
   });
 
   it("allows internal drafting and read operations without triggering outbound guard", () => {
