@@ -213,4 +213,26 @@ This log records non-trivial decisions made during the MyBot transformation, rat
 - **Why**: Institutional investment memos are distributed as PDF files. Exporting raw HTML disguised with a `.html` extension causes friction for IC members and partners. Generating authentic binary PDFs ensures standard document exchange while remaining zero-dependency and deterministic.
 - **Alternatives**: Running headless Chromium via puppeteer to print PDF; rejected due to heavy binary footprint, security sandbox overhead, and platform dependency in self-hosted enterprise environments.
 
+---
+
+### Decision 21: Investor Documentation, README Attribution, and Report Alignment
+- **Decision**:
+  - Authored institutional user onboarding guide in `docs/investor-quickstart.md`:
+    - 5-step first-run guide (booting server, accessing Web UI, choosing deal-team preset, configuring API keys or local LLMs).
+    - Create first deal walkthrough (populating metadata, assigning lead analyst, establishing isolated data room).
+    - Connecting diligence tools via Model Context Protocol (MCP servers, market feeds, SEC filings, code repos).
+    - Confidentiality mode & automated PII/sensitive data redaction.
+    - Outbound approvals human-in-the-loop safety floor (pre-execution verification of emails, CRM updates, external webhooks).
+  - Verified exact attribution text `"Based on OpenMausBot by Milind Soni (Apache-2.0)"` in `README.md` (lines 5 and 78).
+  - Synchronized `FINAL-REPORT.md` with active architectural state:
+    - Updated brand token table to match `shared/brand.ts` (`APP_NAME: "MyBot"`, `DATA_DIR_NAME: "mybot"`, `ATTRIBUTION: "Based on OpenMausBot by Milind Soni (Apache-2.0)"`, `URL_SCHEME: "mybot"`).
+    - Documented `shared/registry-save-failure.ts` dev-server boot fix using `./brand.ts` for Node 24 `--experimental-strip-types` compliance.
+    - Accurately documented that the 5 institutional diligence skills are bundled in `shared/presets/deal-team.json` and unpacked into `teams/deal-team/skills/` on preset load.
+    - Corrected Deals view component path to `src/components/deals/DealsView.tsx`.
+    - Documented outbound guard ordering executing before the `mode === "full"` check in `server/auto-approve.ts`.
+    - Added comprehensive sections on zero-dependency binary PDF 1.4 export and per-deal model governance.
+    - Updated verification test suite results (`server/deals.test.ts` 24/24 PASS, `server/safety-compliance.test.ts` 11/11 PASS).
+- **Why**: Ensures institutional partners and investors have a complete, clear operational guide, upstream open-source license attribution is prominently honored, and architectural documentation reflects ground-truth code.
+
+
 
