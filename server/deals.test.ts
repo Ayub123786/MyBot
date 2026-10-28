@@ -6,9 +6,13 @@ import { describe, expect, it, beforeEach, afterEach } from "vitest";
 import { extractDocumentContent, extractTextAndTables } from "./deal-document-extractor.ts";
 import {
   assertDealIsolation,
+  assertDealModelAllowed,
   buildDocxArchive,
   createDealStore,
+  DealModelNotAllowedError,
+  dispatchDealTurn,
   generateDealMemoHtml,
+  getDealForThread,
 } from "./deals.ts";
 
 describe("Phase 4: Deals, Data Room Isolation, and Diligence Integrations", () => {
@@ -244,6 +248,128 @@ describe("Phase 4: Deals, Data Room Isolation, and Diligence Integrations", () =
       expect(docxBuffer[1]).toBe(0x4B);
       expect(docxBuffer[2]).toBe(0x03);
       expect(docxBuffer[3]).toBe(0x04);
+    });
+  });
+
+  describe("Per-Deal Model Governance & Restriction", () => {
+    it("creates a deal with allowedModels whitelist and persists it", () => {
+      const store = createDealStore(tempDir);
+      const deal = store.createDeal({
+        targetCompany: "SecureSovereign Inc",
+        stage: "Series A",
+        allowedModels: ["claude-3-7-sonnet", "local-ollama"],
+      });
+
+      expect(deal.allowedModels).toEqual(["claude-3-7-sonnet", "local-ollama"]);
+      const fetched = store.getDeal(deal.id);
+      expect(fetched?.allowedModels).toEqual(["claude-3-7-sonnet", "local-ollama"]);
+    });
+
+    it("allows execution when queried model is in the deal's allowedModels list", () => {
+      const store = createDealStore(tempDir);
+      const deal = store.createDeal({
+        targetCompany: "PermittedModel Corp",
+        allowedModels: ["claude-3-7-sonnet", "local-ollama"],
+      });
+
+      expect(() => assertDealModelAllowed(deal, "claude-3-7-sonnet")).not.toThrow();
+      expect(() => assertDealModelAllowed(deal, "local-ollama")).not.toThrow();
+      expect(() => store.assertModelAllowed(deal.id, "claude-3-7-sonnet")).not.toThrow();
+    });
+
+    it("rejects execution with DealModelNotAllowedError when model is outside allowedModels list", () => {
+      const store = createDealStore(tempDir);
+      const deal = store.createDeal({
+        targetCompany: "RestrictedModel Corp",
+        allowedModels: ["claude-3-7-sonnet", "local-ollama"],
+      });
+
+      expect(() => assertDealModelAllowed(deal, "gpt-4o")).toThrow(DealModelNotAllowedError);
+      expect(() => assertDealModelAllowed(deal, "deepseek-r1")).toThrow(DealModelNotAllowedError);
+      expect(() => store.assertModelAllowed(deal.id, "gpt-4o")).toThrow(DealModelNotAllowedError);
+
+      try {
+        assertDealModelAllowed(deal, "gpt-4o");
+      } catch (err) {
+        expect(err).toBeInstanceOf(DealModelNotAllowedError);
+        const modelErr = err as DealModelNotAllowedError;
+        expect(modelErr.status).toBe(400);
+        expect(modelErr.code).toBe("model_not_allowed");
+        expect(modelErr.message).toContain("gpt-4o");
+        expect(modelErr.message).toContain("claude-3-7-sonnet, local-ollama");
+      }
+    });
+
+    it("permits any model when allowedModels is empty or undefined", () => {
+      const store = createDealStore(tempDir);
+      const deal = store.createDeal({
+        targetCompany: "OpenPolicy Corp",
+        allowedModels: [],
+      });
+
+      expect(() => assertDealModelAllowed(deal, "gpt-4o")).not.toThrow();
+      expect(() => assertDealModelAllowed(deal, "claude-3-7-sonnet")).not.toThrow();
+      expect(() => assertDealModelAllowed(deal, "any-model-at-all")).not.toThrow();
+    });
+
+    it("updates allowedModels dynamically via setAllowedModels in deal store", () => {
+      const store = createDealStore(tempDir);
+      const deal = store.createDeal({
+        targetCompany: "DynamicPolicy Corp",
+        allowedModels: ["claude-3-7-sonnet"],
+      });
+
+      expect(() => store.assertModelAllowed(deal.id, "gpt-4o")).toThrow(DealModelNotAllowedError);
+
+      // Expand whitelist to include gpt-4o
+      const updated = store.setAllowedModels(deal.id, ["claude-3-7-sonnet", "gpt-4o"]);
+      expect(updated.allowedModels).toEqual(["claude-3-7-sonnet", "gpt-4o"]);
+      expect(() => store.assertModelAllowed(deal.id, "gpt-4o")).not.toThrow();
+    });
+
+    it("dispatches deal turn when model is allowed, enforcing confidentiality mode", () => {
+      const store = createDealStore(tempDir);
+      const deal = store.createDeal({
+        targetCompany: "TurnDispatch Corp",
+        allowedModels: ["claude-3-7-sonnet", "local-ollama"],
+      });
+
+      const result = store.dispatchTurn({
+        dealId: deal.id,
+        model: "claude-3-7-sonnet",
+        prompt: "Analyze the ARR growth metrics for Series A investment.",
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.dealId).toBe(deal.id);
+      expect(result.model).toBe("claude-3-7-sonnet");
+      expect(result.prompt).toContain("ARR growth");
+
+      // Verify direct dispatchDealTurn with deal object
+      const direct = dispatchDealTurn({
+        deal,
+        model: "local-ollama",
+        prompt: "Check balance sheet liabilities.",
+      });
+      expect(direct.success).toBe(true);
+
+      // Verify rejected turn dispatch
+      expect(() =>
+        store.dispatchTurn({
+          dealId: deal.id,
+          model: "unauthorized-llm",
+          prompt: "Should be blocked before dispatch.",
+        })
+      ).toThrow(DealModelNotAllowedError);
+    });
+
+    it("locates deal by threadId or channel-deal identifier", () => {
+      const deal = getDealForThread("channel-deal-demo-apexflow-ai");
+      expect(deal).not.toBeNull();
+      expect(deal?.id).toBe("demo-apexflow-ai");
+
+      const missing = getDealForThread("unrelated-thread-12345");
+      expect(missing).toBeNull();
     });
   });
 });

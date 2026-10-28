@@ -18,6 +18,15 @@ export class DealIsolationError extends Error {
   }
 }
 
+export class DealModelNotAllowedError extends Error {
+  readonly status: number = 400;
+  readonly code: string = "model_not_allowed";
+  constructor(model: string, dealId: string, allowedModels: string[]) {
+    super(`Model '${model}' is not permitted for deal '${dealId}'. Permitted models: ${allowedModels.join(", ")}`);
+    this.name = "DealModelNotAllowedError";
+  }
+}
+
 export interface DealDocument {
   id: string;
   name: string;
@@ -62,6 +71,7 @@ export interface Deal {
   status: "active" | "passed" | "invested";
   thesisAlignment: string;
   channelId?: string;
+  allowedModels?: string[];
   createdAt: string;
   updatedAt: string;
   documents: DealDocument[];
@@ -145,6 +155,51 @@ export function saveDeal(deal: Deal): void {
   writeFileSync(metaPath, JSON.stringify(deal, null, 2), "utf8");
 }
 
+/**
+ * Server-Enforced Model Restriction for Deals:
+ * If a deal specifies allowedModels, queries to models outside that whitelist are strictly rejected.
+ */
+export function assertDealModelAllowed(dealIdOrDeal: string | Deal, model: string): void {
+  const deal = typeof dealIdOrDeal === "string" ? getDeal(dealIdOrDeal) : dealIdOrDeal;
+  if (!deal.allowedModels || deal.allowedModels.length === 0) {
+    return; // No restrictions
+  }
+  const normalizedModel = (model || "").trim().toLowerCase();
+  const isAllowed = deal.allowedModels.some((allowed) => {
+    const norm = allowed.trim().toLowerCase();
+    return norm === normalizedModel || normalizedModel.includes(norm) || norm.includes(normalizedModel);
+  });
+  if (!isAllowed) {
+    throw new DealModelNotAllowedError(model, deal.id, deal.allowedModels);
+  }
+}
+
+/**
+ * Look up a deal associated with an active task or chat thread.
+ */
+export function getDealForThread(threadId: string): Deal | null {
+  if (!threadId) return null;
+  const match = /^channel-deal-([a-z0-9-]+)$/.exec(threadId) || /^deal-([a-z0-9-]+)$/.exec(threadId);
+  if (match) {
+    try {
+      return getDeal(match[1]!);
+    } catch {
+      // not found
+    }
+  }
+  try {
+    const deals = listDeals();
+    for (const d of deals) {
+      if (d.channelId === threadId || d.id === threadId || threadId.startsWith(`channel-deal-${d.id}`)) {
+        return d;
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
 export function createDeal(input: {
   name: string;
   company: string;
@@ -153,6 +208,7 @@ export function createDeal(input: {
   targetCheck?: string;
   valuation?: string;
   thesisAlignment?: string;
+  allowedModels?: string[];
 }): Deal {
   ensureDealsDir();
   const slug = input.company
@@ -178,6 +234,7 @@ export function createDeal(input: {
     status: "active",
     thesisAlignment: input.thesisAlignment?.trim() || "High priority candidate",
     channelId: `channel-deal-${id}`,
+    allowedModels: input.allowedModels && input.allowedModels.length > 0 ? input.allowedModels : undefined,
     createdAt: now,
     updatedAt: now,
     documents: [],
@@ -317,10 +374,14 @@ export function addDealDocument(
  * Filter and prepare prompts for diligence bots under Confidentiality Mode.
  */
 export function prepareDealPrompt(
-  dealId: string,
+  dealOrId: string | Deal,
   prompt: string,
-  options?: { isCloudModel?: boolean; botId?: string; botName?: string },
+  options?: { isCloudModel?: boolean; botId?: string; botName?: string; model?: string },
 ): { prompt: string; redacted: boolean; warnings: string[] } {
+  const dealId = typeof dealOrId === "string" ? dealOrId : dealOrId.id;
+  if (options?.model) {
+    assertDealModelAllowed(dealOrId, options.model);
+  }
   const cfg = loadConfig();
   const isConfidential = cfg.confidentialMode?.enabled ?? true;
   const result = confidentialModePromptFilter(prompt, isConfidential);
@@ -340,10 +401,43 @@ export function prepareDealPrompt(
     metadata: {
       redacted: result.redacted,
       warningsCount: result.warnings.length,
+      model: options?.model,
     },
   });
 
   return result;
+}
+
+/**
+ * Dispatch turn on a deal with server-enforced model governance.
+ */
+export function dispatchDealTurn(options: {
+  dealId?: string;
+  deal?: Deal;
+  botKey?: string;
+  model: string;
+  prompt: string;
+}): { success: boolean; dealId: string; model: string; prompt: string; redacted: boolean; warnings: string[] } {
+  const deal = options.deal || (options.dealId ? getDeal(options.dealId) : null);
+  if (!deal) {
+    throw new DealIsolationError(404, `Deal '${options.dealId}' was not found.`);
+  }
+  assertDealModelAllowed(deal, options.model);
+  const isCloud = !options.model.toLowerCase().includes("local") && !options.model.toLowerCase().includes("ollama");
+  const prepared = prepareDealPrompt(deal, options.prompt, {
+    botId: options.botKey,
+    botName: options.botKey,
+    isCloudModel: isCloud,
+    model: options.model,
+  });
+  return {
+    success: true,
+    dealId: deal.id,
+    model: options.model,
+    prompt: prepared.prompt,
+    redacted: prepared.redacted,
+    warnings: prepared.warnings,
+  };
 }
 
 /**
@@ -707,6 +801,7 @@ Total Fully Diluted,,10000000,100.0%,
     status: "active",
     thesisAlignment: "High conviction candidate. Exceptional team and strong gross margin expansion.",
     channelId: "channel-deal-demo-apexflow-ai",
+    allowedModels: ["claude-3-7-sonnet", "claude-3-5-sonnet", "local-ollama"],
     createdAt: now,
     updatedAt: now,
     documents: [
@@ -950,6 +1045,7 @@ export function createDealStore(baseDir?: string) {
       thesisSummary?: string;
       thesisAlignment?: string;
       leadPartner?: string;
+      allowedModels?: string[];
     }): DealRecord {
       const company = input.targetCompany || input.company || input.name || "Untitled Deal";
       const slug = company.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || `deal-${randomUUID().slice(0, 8)}`;
@@ -975,6 +1071,7 @@ export function createDealStore(baseDir?: string) {
         valuation: input.valuation || (input.valuationUsd ? `$${(input.valuationUsd / 1e6).toFixed(1)}M` : "$25.0M"),
         status: "active",
         thesisAlignment: input.thesisSummary || input.thesisAlignment || "Under initial review.",
+        allowedModels: input.allowedModels,
         createdAt: now,
         updatedAt: now,
         documents: [],
@@ -985,6 +1082,27 @@ export function createDealStore(baseDir?: string) {
 
       writeFileSync(join(dir, "deal.json"), JSON.stringify(deal, null, 2), "utf8");
       return deal;
+    },
+
+    assertModelAllowed(dealId: string, model: string): void {
+      const deal = this.getDeal(dealId);
+      if (!deal) throw new DealIsolationError(404, `Deal '${dealId}' not found`);
+      assertDealModelAllowed(deal, model);
+    },
+
+    setAllowedModels(dealId: string, models: string[]): DealRecord {
+      const deal = this.getDeal(dealId);
+      if (!deal) throw new DealIsolationError(404, `Deal '${dealId}' not found`);
+      deal.allowedModels = models;
+      deal.updatedAt = new Date().toISOString();
+      writeFileSync(join(localDealDir(dealId), "deal.json"), JSON.stringify(deal, null, 2), "utf8");
+      return deal;
+    },
+
+    dispatchTurn(options: { dealId: string; botKey?: string; model: string; prompt: string }) {
+      const deal = this.getDeal(options.dealId);
+      if (!deal) throw new DealIsolationError(404, `Deal '${options.dealId}' not found`);
+      return dispatchDealTurn({ deal, model: options.model, prompt: options.prompt, botKey: options.botKey });
     },
 
     addFinding(dealId: string, finding: any): any {

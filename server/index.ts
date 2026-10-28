@@ -604,6 +604,7 @@ import { createChannelRoutes } from "./routes/channels.ts";
 import { createTaskRoutes } from "./routes/tasks.ts";
 import { createTeamRoutes } from "./routes/teams.ts";
 import { createDealRoutes } from "./routes/deals.ts";
+import { assertDealModelAllowed, getDealForThread } from "./deals.ts";
 import { createAuditRoutes } from "./routes/audit.ts";
 import { createThreadModelRoutes } from "./routes/thread-models.ts";
 import { createUndoRoutes } from "./routes/undo.ts";
@@ -8161,6 +8162,11 @@ async function startTurn(
   if (!bot) throw Object.assign(new Error("no such task"), { status: 404 });
   if (bot.approvalGrant) {
     throw Object.assign(new Error("this bot's approval level is still being confirmed — try again"), { status: 409, code: "settling" });
+  }
+  const deal = getDealForThread(threadId);
+  if (deal?.allowedModels && deal.allowedModels.length > 0) {
+    const selectedModel = bot.modelSelection?.model || bot.modelSelection?.instanceId || "";
+    assertDealModelAllowed(deal, selectedModel);
   }
   const answer = turnAnswers(threadId, opts);
   let computerSkipped: string | undefined;

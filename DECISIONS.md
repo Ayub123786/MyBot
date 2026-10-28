@@ -178,3 +178,23 @@ This log records non-trivial decisions made during the MyBot transformation, rat
   - Added comprehensive verification tests in `server/deals.test.ts` validating full parsing across all 5 binary formats, confirming exact table extraction, text extraction, and OCR status reporting. All 16 tests in `server/deals.test.ts` pass cleanly.
 - **Why**: Institutional data rooms contain diverse binary document types; extractors must reliably parse real archives and honestly report when documents require OCR rather than silently dropping content.
 - **Alternatives**: Mocking file buffers in unit tests; rejected because real binary fixtures ensure decompression and parser correctness against actual OpenXML and PDF specifications.
+
+---
+
+### Decision 19: Per-Deal Model Governance & Server-Enforced Policy Restrictions
+- **Decision**:
+  - Added `allowedModels?: string[]` to the `Deal` and `DealRecord` schema in `server/deals.ts`.
+  - Implemented `assertDealModelAllowed(dealOrId, model)` and `DealModelNotAllowedError` (HTTP 400, `code: "model_not_allowed"`). If a deal specifies an `allowedModels` list, any attempt to run a prompt or task with a non-whitelisted model is strictly blocked before inference. Deals with an empty or undefined `allowedModels` list permit all configured models.
+  - Implemented `getDealForThread(threadId)` to link thread and channel identifiers (e.g. `channel-deal-<id>`) to their governing deal record.
+  - Integrated server-enforced model governance into `server/index.ts` `startTurn`: when a turn begins on a thread associated with a deal, the bot's selected model is validated against `assertDealModelAllowed(deal, selectedModel)`.
+  - Added `dispatchDealTurn` and `prepareDealPrompt(dealOrId, prompt, options)` in `server/deals.ts`, ensuring direct turn dispatches and confidentiality mode prompt filtering enforce model whitelisting.
+  - Added route `POST /api/deals/:id/dispatch-turn` in `server/routes/deals.ts` with Zod schema validation and HTTP 400 error handling for disallowed models.
+  - Implemented `assertModelAllowed` and `setAllowedModels` in `createDealStore(baseDir)`.
+  - Updated `src/components/deals/DealsView.tsx`:
+    - Added a dedicated "Model Governance" tab (`activeTab === "settings"`) featuring preset checkboxes for common models (`claude-3-7-sonnet`, `claude-3-5-sonnet`, `gpt-4o`, `o3-mini`, `local-ollama`), custom model identifier input, and dynamic whitelist tag removal with immediate persistence via `PATCH /api/deals/:id`.
+    - Added a Model Governance summary card to the Deal Overview tab displaying permitted models or unconstrained policy status with a direct navigation link.
+    - Added model policy selection options in the New Deal modal for configuring whitelist rules at creation time.
+  - Added 7 comprehensive verification unit tests in `server/deals.test.ts` covering deal creation with whitelist, allowed model execution, rejection with `DealModelNotAllowedError`, unconstrained deal behavior, dynamic whitelist updates, turn dispatching, and thread resolution. All 23 tests in `server/deals.test.ts` pass cleanly.
+- **Why**: Institutional investors frequently operate under strict LP or compliance mandates regarding data residency, model certification, and zero-egress policies (e.g., restricting healthcare deals strictly to local or approved HIPAA-compliant models). Server-enforced governance guarantees prompts never reach unapproved LLM providers.
+- **Alternatives**: Client-only UI dropdown restrictions; rejected because rogue API calls or background turns could bypass the UI, violating deal isolation policies. Server-side enforcement ensures 100% compliance.
+

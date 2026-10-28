@@ -7,12 +7,14 @@ import {
   createDeal,
   dealDir,
   deleteDeal,
+  dispatchDealTurn,
   exportMemoDocx,
   exportMemoPdfHtml,
   getDeal,
   listDeals,
   updateDeal,
   DealIsolationError,
+  DealModelNotAllowedError,
 } from "../deals.ts";
 import { saveDealAttachment } from "../attachments.ts";
 import { PASS, type RouteHandler } from "./table.ts";
@@ -44,6 +46,7 @@ export function createDealRoutes(deps: DealRouteDeps = {}): RouteHandler {
         targetCheck: z.string().optional(),
         valuation: z.string().optional(),
         thesisAlignment: z.string().optional(),
+        allowedModels: z.array(z.string()).optional(),
       });
       const parsed = schema.safeParse(body);
       if (!parsed.success) {
@@ -66,6 +69,30 @@ export function createDealRoutes(deps: DealRouteDeps = {}): RouteHandler {
     const dealId = dealMatch[1]!;
     const subPath = dealMatch[2] ?? "";
     const callerDealId = req.headers["x-deal-scope"] as string | undefined;
+
+    // Direct turn dispatch with server-enforced model governance
+    if (method === "POST" && subPath === "dispatch-turn") {
+      try {
+        assertDealIsolation(dealId, callerDealId);
+        const body = (await readBody(req)) as { model?: string; prompt?: string; botKey?: string };
+        if (!body.model || !body.prompt) {
+          return json(res, 400, { error: "Both 'model' and 'prompt' are required." });
+        }
+        const result = dispatchDealTurn({
+          dealId,
+          model: body.model,
+          prompt: body.prompt,
+          botKey: body.botKey,
+        });
+        return json(res, 200, result);
+      } catch (error) {
+        if (error instanceof DealModelNotAllowedError) {
+          return json(res, 400, { error: error.message, code: error.code });
+        }
+        const status = error instanceof DealIsolationError ? error.status : 500;
+        return json(res, status, { error: error instanceof Error ? error.message : "Dispatch failed" });
+      }
+    }
 
     // 3. Export to PDF / printable HTML
     if (method === "GET" && subPath === "export/pdf") {

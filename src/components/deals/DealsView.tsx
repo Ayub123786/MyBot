@@ -12,6 +12,7 @@ import {
   Plus,
   Scale,
   ShieldCheck,
+  SlidersHorizontal,
   TrendingUp,
   UploadCloud,
   Users,
@@ -61,6 +62,7 @@ export interface DealRecord {
   createdAt: string;
   updatedAt: string;
   thesisSummary: string;
+  allowedModels?: string[];
   quickMetrics?: {
     arrUsd?: number;
     growthYoYPercent?: number;
@@ -90,10 +92,12 @@ export function DealsView() {
   const { state, dispatch } = useStore();
   const [deals, setDeals] = useState<DealRecord[]>([]);
   const [selectedDealId, setSelectedDealId] = useState<string>("demo-apexflow-ai");
-  const [activeTab, setActiveTab] = useState<"overview" | "dataroom" | "channel" | "findings" | "memo">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "dataroom" | "channel" | "findings" | "memo" | "settings">("overview");
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+  const [modelSettingsMessage, setModelSettingsMessage] = useState<string | null>(null);
+  const [customModelInput, setCustomModelInput] = useState<string>("");
   const [previewDoc, setPreviewDoc] = useState<DealDocument | null>(null);
   const [previewText, setPreviewText] = useState<string | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
@@ -106,6 +110,7 @@ export function DealsView() {
     valuationUsd: 40000000,
     targetCheckSizeUsd: 8000000,
     thesisSummary: "",
+    allowedModels: [] as string[],
   });
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -210,6 +215,31 @@ export function DealsView() {
     }
   };
 
+  // Save allowed models policy
+  const handleSaveAllowedModels = async (models: string[]) => {
+    if (!currentDeal) return;
+    try {
+      setModelSettingsMessage("Saving model governance policy...");
+      const res = await fetch(`/api/deals/${encodeURIComponent(currentDeal.id)}`, {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+          "x-deal-scope": currentDeal.id,
+        },
+        body: JSON.stringify({ allowedModels: models }),
+      });
+      if (res.ok) {
+        setModelSettingsMessage("Governance policy saved successfully.");
+        setTimeout(() => setModelSettingsMessage(null), 3000);
+        await loadDeals();
+      } else {
+        setModelSettingsMessage("Failed to update policy.");
+      }
+    } catch {
+      setModelSettingsMessage("Error saving policy.");
+    }
+  };
+
   const filteredFindings = (currentDeal?.findings || []).filter((f) => {
     if (categoryFilter === "all") return true;
     return f.category === categoryFilter;
@@ -280,6 +310,7 @@ export function DealsView() {
           { id: "findings", label: "Findings & Red Flags", icon: AlertTriangle, count: currentDeal?.findings?.length },
           { id: "memo", label: "IC Memo", icon: FileText },
           { id: "channel", label: "Deal Team Chat", icon: Users },
+          { id: "settings", label: "Model Governance", icon: SlidersHorizontal },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -380,6 +411,37 @@ export function DealsView() {
                     </div>
                   );
                 })}
+              </div>
+            </div>
+
+            {/* Model Governance Policy Card */}
+            <div className="rounded-xl border border-edge/80 bg-surface p-5">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <SlidersHorizontal size={16} className="text-accent" />
+                  <h3 className="font-semibold text-ink text-sm">Model Governance & Permitted LLMs</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("settings")}
+                  className="text-accent hover:underline text-xs"
+                >
+                  Configure Policy →
+                </button>
+              </div>
+              <p className="text-[11px] text-ink-secondary mb-3">
+                Server-enforced boundary: bots working on this deal may only query the models listed below.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {currentDeal.allowedModels && currentDeal.allowedModels.length > 0 ? (
+                  currentDeal.allowedModels.map((m) => (
+                    <span key={m} className="inline-flex items-center rounded-md bg-accent/15 px-2.5 py-1 font-mono text-accent text-xs font-medium">
+                      {m}
+                    </span>
+                  ))
+                ) : (
+                  <span className="text-ink-secondary text-xs italic">All models permitted (no restrictions configured).</span>
+                )}
               </div>
             </div>
           </div>
@@ -676,7 +738,7 @@ export function DealsView() {
               ))}
             </div>
           </div>
-        ) : (
+        ) : activeTab === "channel" ? (
           /* ================= CHANNEL TAB ================= */
           <div className="space-y-6 max-w-4xl">
             <div className="rounded-xl border border-edge/80 bg-surface p-5">
@@ -721,6 +783,108 @@ export function DealsView() {
                   </button>
                 ))}
               </div>
+            </div>
+          </div>
+        ) : (
+          /* ================= MODEL GOVERNANCE & SETTINGS TAB ================= */
+          <div className="space-y-6 max-w-4xl">
+            <div className="flex items-center gap-3 rounded-lg border border-accent/20 bg-accent/5 p-4">
+              <SlidersHorizontal size={20} className="shrink-0 text-accent" />
+              <div className="text-xs">
+                <span className="font-medium text-accent">Per-Deal LLM Governance Policy: </span>
+                <span className="text-ink-secondary">
+                  Restrict which AI models are permitted to process documents and prompts for <strong>{currentDeal.targetCompany}</strong>. Any turn or prompt directed to non-whitelisted models is strictly blocked by the server before execution.
+                </span>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-edge/80 bg-surface p-6 space-y-4">
+              <div>
+                <h2 className="font-semibold text-ink text-sm">Permitted Model Whitelist</h2>
+                <p className="text-ink-secondary text-xs mt-0.5">Configure approved LLMs for this investment data room:</p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                {[
+                  { id: "claude-3-7-sonnet", label: "Anthropic Claude 3.7 Sonnet (Reasoning)" },
+                  { id: "claude-3-5-sonnet", label: "Anthropic Claude 3.5 Sonnet" },
+                  { id: "gpt-4o", label: "OpenAI GPT-4o" },
+                  { id: "o3-mini", label: "OpenAI o3-mini (Reasoning)" },
+                  { id: "local-ollama", label: "Local Ollama / Open-Weights (Zero Cloud Egress)" },
+                ].map((m) => {
+                  const isChecked = (currentDeal.allowedModels || []).includes(m.id);
+                  return (
+                    <label key={m.id} className="flex items-center gap-2.5 rounded-lg border border-edge/60 bg-raised/30 p-3 cursor-pointer hover:bg-raised/60">
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={async () => {
+                          const current = currentDeal.allowedModels || [];
+                          const next = isChecked ? current.filter((x) => x !== m.id) : [...current, m.id];
+                          await handleSaveAllowedModels(next);
+                        }}
+                        className="rounded text-accent focus:ring-accent"
+                      />
+                      <span className="text-ink text-xs font-medium">{m.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+
+              {/* Custom model input */}
+              <div className="pt-3 border-t border-edge/60 flex items-center gap-2">
+                <input
+                  type="text"
+                  placeholder="Add custom model identifier (e.g. deepseek-r1:70b)..."
+                  value={customModelInput}
+                  onChange={(e) => setCustomModelInput(e.target.value)}
+                  className="flex-1 rounded-lg border border-edge bg-raised px-3 py-1.5 text-xs text-ink focus:outline-none focus:ring-1 focus:ring-accent"
+                />
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!customModelInput.trim()) return;
+                    const next = [...(currentDeal.allowedModels || []), customModelInput.trim()];
+                    await handleSaveAllowedModels(next);
+                    setCustomModelInput("");
+                  }}
+                  className="rounded-lg bg-accent px-3 py-1.5 text-black text-xs font-medium hover:opacity-90"
+                >
+                  Add Model
+                </button>
+              </div>
+
+              {/* Current active list display */}
+              <div className="pt-2">
+                <div className="text-[11px] text-ink-muted uppercase tracking-wider mb-2">Active Policy Whitelist:</div>
+                <div className="flex flex-wrap gap-2">
+                  {(currentDeal.allowedModels || []).length === 0 ? (
+                    <span className="text-ink-secondary text-xs italic">No restrictions configured — all models permitted.</span>
+                  ) : (
+                    currentDeal.allowedModels!.map((model) => (
+                      <span key={model} className="inline-flex items-center gap-1.5 rounded-md bg-accent/15 px-2.5 py-1 text-xs font-mono font-medium text-accent">
+                        {model}
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            const next = (currentDeal.allowedModels || []).filter((x) => x !== model);
+                            await handleSaveAllowedModels(next);
+                          }}
+                          className="text-ink-muted hover:text-ink font-bold"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {modelSettingsMessage && (
+                <div className="rounded bg-accent/10 border border-accent/30 p-2.5 text-xs text-accent">
+                  {modelSettingsMessage}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -812,6 +976,36 @@ export function DealsView() {
                   onChange={(e) => setNewDealForm({ ...newDealForm, thesisSummary: e.target.value })}
                   className="mt-1 w-full rounded-lg border border-edge bg-raised px-3 py-2 text-ink focus:outline-none focus:ring-1 focus:ring-accent"
                 />
+              </div>
+
+              <div>
+                <label className="block font-medium text-ink mb-1.5">Permitted Models Policy (Optional Whitelist)</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: "claude-3-7-sonnet", label: "Claude 3.7 Sonnet" },
+                    { id: "claude-3-5-sonnet", label: "Claude 3.5 Sonnet" },
+                    { id: "gpt-4o", label: "GPT-4o" },
+                    { id: "local-ollama", label: "Local Ollama" },
+                  ].map((m) => {
+                    const isChecked = newDealForm.allowedModels.includes(m.id);
+                    return (
+                      <label key={m.id} className="flex items-center gap-2 rounded border border-edge bg-raised/40 p-2 cursor-pointer text-xs">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {
+                            const next = isChecked
+                              ? newDealForm.allowedModels.filter((x) => x !== m.id)
+                              : [...newDealForm.allowedModels, m.id];
+                            setNewDealForm({ ...newDealForm, allowedModels: next });
+                          }}
+                          className="rounded text-accent focus:ring-accent"
+                        />
+                        <span className="text-ink truncate">{m.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
