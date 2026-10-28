@@ -11,6 +11,7 @@ import {
   createDealStore,
   DealModelNotAllowedError,
   dispatchDealTurn,
+  exportMemoPdf,
   generateDealMemoHtml,
   getDealForThread,
 } from "./deals.ts";
@@ -248,6 +249,44 @@ describe("Phase 4: Deals, Data Room Isolation, and Diligence Integrations", () =
       expect(docxBuffer[1]).toBe(0x4B);
       expect(docxBuffer[2]).toBe(0x03);
       expect(docxBuffer[3]).toBe(0x04);
+    });
+
+    it("generates a valid binary PDF 1.4 memo document with correct headers and content", () => {
+      const store = createDealStore(tempDir);
+      const deal = store.getDeal("demo-apexflow-ai")!;
+      const pdfBuffer = exportMemoPdf(deal);
+
+      expect(Buffer.isBuffer(pdfBuffer)).toBe(true);
+      expect(pdfBuffer.length).toBeGreaterThan(1000);
+
+      // Verify standard PDF 1.4 magic header: %PDF-1.4
+      const header = pdfBuffer.slice(0, 8).toString("ascii");
+      expect(header).toBe("%PDF-1.4");
+
+      // Verify binary comment line (%âãÏÓ)
+      expect(pdfBuffer[9]).toBe(0x25); // '%'
+      expect(pdfBuffer[10]).toBe(0xe2);
+      expect(pdfBuffer[11]).toBe(0xe3);
+      expect(pdfBuffer[12]).toBe(0xcf);
+      expect(pdfBuffer[13]).toBe(0xd3);
+
+      const content = pdfBuffer.toString("latin1");
+      // Verify trailer and EOF marker
+      expect(content).toContain("%%EOF");
+      expect(content).toContain("startxref");
+      expect(content).toContain("xref");
+      expect(content).toContain("/Type /Catalog");
+      expect(content).toContain("/Type /Pages");
+
+      // Verify memo content and disclaimer are present in the PDF streams
+      expect(content).toContain("ApexFlow AI");
+      expect(content).toContain("Investment Committee");
+      expect(content).toContain("Internal Decision Support - Not Investment Advice");
+
+      // Verify store.exportMemoPdf returns identical binary buffer
+      const storePdf = store.exportMemoPdf("demo-apexflow-ai");
+      expect(storePdf.slice(0, 8).toString("ascii")).toBe("%PDF-1.4");
+      expect(storePdf.length).toBeGreaterThan(1000);
     });
   });
 

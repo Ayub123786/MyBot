@@ -693,11 +693,20 @@ export function DealsView() {
                 </a>
                 <a
                   href={`/api/deals/${encodeURIComponent(currentDeal.id)}/export/pdf`}
-                  download={`${currentDeal.targetCompany}-IC-Memo.html`}
+                  download={`${currentDeal.targetCompany}-IC-Memo.pdf`}
                   className="flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 font-medium text-black text-xs transition-opacity hover:opacity-90"
                 >
                   <Download size={14} />
-                  <span>Export Memo (PDF/HTML)</span>
+                  <span>Export PDF Memo</span>
+                </a>
+                <a
+                  href={`/api/deals/${encodeURIComponent(currentDeal.id)}/export/pdf?format=html`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-1.5 rounded-lg border border-edge bg-raised px-3 py-1.5 font-medium text-ink text-xs hover:bg-raised/80"
+                >
+                  <Eye size={14} />
+                  <span>Print View</span>
                 </a>
               </div>
             </div>

@@ -9,6 +9,7 @@ import {
   deleteDeal,
   dispatchDealTurn,
   exportMemoDocx,
+  exportMemoPdf,
   exportMemoPdfHtml,
   getDeal,
   listDeals,
@@ -94,16 +95,28 @@ export function createDealRoutes(deps: DealRouteDeps = {}): RouteHandler {
       }
     }
 
-    // 3. Export to PDF / printable HTML
+    // 3. Export to binary PDF (or printable HTML if ?format=html)
     if (method === "GET" && subPath === "export/pdf") {
       try {
         assertDealIsolation(dealId, callerDealId);
-        const html = exportMemoPdfHtml(dealId);
+        const format = url.searchParams.get("format");
+        if (format === "html") {
+          const html = exportMemoPdfHtml(dealId);
+          res.writeHead(200, {
+            "content-type": "text/html; charset=utf-8",
+            "content-disposition": `inline; filename="IC_Memo_${dealId}.html"`,
+          });
+          res.end(html);
+          return;
+        }
+
+        const pdfBuffer = exportMemoPdf(dealId);
         res.writeHead(200, {
-          "content-type": "text/html; charset=utf-8",
-          "content-disposition": `inline; filename="IC_Memo_${dealId}.html"`,
+          "content-type": "application/pdf",
+          "content-disposition": `attachment; filename="IC_Memo_${dealId}.pdf"`,
+          "content-length": String(pdfBuffer.length),
         });
-        res.end(html);
+        res.end(pdfBuffer);
         return;
       } catch (error) {
         const status = error instanceof DealIsolationError ? error.status : 500;
