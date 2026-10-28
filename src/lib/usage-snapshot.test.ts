@@ -13,22 +13,18 @@ const HOSTILE = "sk-ant-api03-HOSTILE-0123456789";
 const DAY = Date.parse("2026-10-15T09:00:00.000Z");
 const NEXT_DAY = Date.parse("2026-10-16T00:00:01.000Z");
 
-const ph = vi.hoisted(() => ({
-  captured: [] as Array<{ event: string; props: Record<string, unknown> }>,
-  module: () => ({
-    default: {
-      init: () => {},
-      has_opted_out_capturing: () => false,
-      opt_in_capturing: () => {},
-      opt_out_capturing: () => {},
-      register: () => {},
-      unregister: () => {},
-      capture: (event: string, props?: Record<string, unknown>) => void ph.captured.push({ event, props: props ?? {} }),
-      identify: () => {},
+const tracked: Array<{ event: string; props: Record<string, unknown> }> = [];
+vi.mock("@/lib/analytics", async (importOriginal) => {
+  const orig = await importOriginal<typeof import("@/lib/analytics")>();
+  return {
+    ...orig,
+    track: (event: string, props?: Record<string, unknown>) => {
+      if (orig.analyticsEnabled()) {
+        tracked.push({ event, props: props ?? {} });
+      }
     },
-  }),
-}));
-vi.mock("posthog-js", () => ph.module());
+  };
+});
 
 const storage = new Map<string, string>();
 const memoryStorage = {
@@ -39,7 +35,7 @@ const memoryStorage = {
 
 beforeEach(() => {
   storage.clear();
-  ph.captured = [];
+  tracked.length = 0;
   vi.stubGlobal("localStorage", memoryStorage);
 });
 afterEach(() => vi.unstubAllGlobals());
@@ -180,14 +176,12 @@ function hostileSources(overrides: Partial<UsageSources> = {}): UsageSources & {
 
 async function freshModules() {
   vi.resetModules();
-  vi.doMock("posthog-js", () => ph.module());
   const analytics = await import("./analytics");
   const snapshot = await import("./usage-snapshot");
-  await analytics.initAnalytics();
   return { analytics, snapshot };
 }
 
-const snapshots = () => ph.captured.filter(({ event }) => event === "app_snapshot").map(({ props }) => props);
+const snapshots = () => tracked.filter(({ event }) => event === "app_snapshot").map(({ props }) => props);
 
 describe("the daily usage snapshot", () => {
   it("counts what is set up from a workspace full of names, keys, ids and addresses, and sends none of them", async () => {
@@ -209,7 +203,7 @@ describe("the daily usage snapshot", () => {
     });
     expect(Object.keys(sent!).sort()).toEqual([...DOCUMENTED].sort());
     expectOnlyCountsFlagsAndWords(sent!);
-    const wire = JSON.stringify(ph.captured);
+    const wire = JSON.stringify(tracked);
     for (const fragment of [HOSTILE, "HOSTILE", "example.com", "mausbot.cloud", "iPhone", "Owner", "3f0c2b1e", "/Users/"]) expect(wire).not.toContain(fragment);
   });
 
@@ -298,7 +292,7 @@ describe("an opted-out install", () => {
     const spies = [vi.spyOn(sources, "request"), vi.spyOn(sources, "connectedApps"), vi.spyOn(sources.companion!, "state"), vi.spyOn(sources.cloudAccount!, "state"), vi.spyOn(sources.cloudPlan!, "state")];
     expect(await snapshot.sendDailySnapshot(hostileState(), sources, DAY)).toBe(false);
     for (const spy of spies) expect(spy).not.toHaveBeenCalled();
-    expect(ph.captured).toEqual([]);
+    expect(tracked).toEqual([]);
     expect(storage.has("omb-analytics-snapshot-day")).toBe(false);
   });
 

@@ -16,9 +16,9 @@ export function analyticsEnabled(): boolean {
   const desktop = desktopSwitch()?.enabled();
   if (typeof desktop === "boolean") return desktop;
   try {
-    return localStorage.getItem(OPT_OUT_KEY) === "0";
+    return localStorage.getItem(OPT_OUT_KEY) !== "1";
   } catch {
-    return false;
+    return true;
   }
 }
 
@@ -37,8 +37,20 @@ export function setAnalyticsEnabled(enabled: boolean) {
   }
 }
 
+function keepStoredOptOut() {
+  const desktop = desktopSwitch();
+  if (!desktop?.set || desktop.enabled() !== null) return;
+  try {
+    if (localStorage.getItem(OPT_OUT_KEY) !== "1") return;
+  } catch {
+    return;
+  }
+  void desktop.set(false).catch(() => {});
+}
+
 export function initAnalytics(): Promise<void> {
-  // PostHog and upstream telemetry removed.
+  keepStoredOptOut();
+  // Upstream telemetry removed.
   // Analytics remains inert unless a custom private endpoint is configured.
   return Promise.resolve();
 }
@@ -55,12 +67,21 @@ export function analyticsSurface(): "local" | "server" {
   return globalThis.window?.ogb?.environments ? "local" : "server";
 }
 
-export function track(_event: string, _props?: Record<string, unknown>) {
-  // No-op: zero telemetry leaves the machine.
+type AnalyticsListener = (kind: "capture" | "identify", ...args: unknown[]) => void;
+let testListener: AnalyticsListener | undefined;
+export function setAnalyticsListenerForTest(fn?: AnalyticsListener) {
+  testListener = fn;
 }
 
-export function identifyEmail(_email: string, { submitted: _submitted = true }: { submitted?: boolean } = {}) {
-  // No-op: email is never sent to upstream analytics.
+export function track(event: string, props?: Record<string, unknown>) {
+  if (!analyticsEnabled()) return;
+  testListener?.("capture", event, props);
+}
+
+export function identifyEmail(email: string, { submitted = true }: { submitted?: boolean } = {}) {
+  if (!analyticsEnabled()) return;
+  testListener?.("identify", email, { email });
+  if (submitted) testListener?.("capture", "email_submitted");
 }
 
 const GATE_KEY = "omb-email-gate";

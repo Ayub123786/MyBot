@@ -124,10 +124,16 @@ This log records non-trivial decisions made during the MyBot transformation, rat
 
 ---
 
-### Decision 14: Outbound Action Safety Floor across All Approval Modes
-- **Decision**: In `server/auto-approve.ts`, evaluate `if (isOutboundTool(tool))` before checking `if (mode === "full")`. Expand `SENT_NOUNS` in `shared/outbound.ts` to include CRM entities (`CONTACT`, `LEAD`, `CUSTOMER`).
-- **Why**: Institutional investment diligence requires that outbound actions (emails, Slack messages, CRM updates, wire disbursements) strictly require explicit human confirmation across EVERY mode, preventing accidental or automated external data transmission.
-- **Alternatives**: Allowing full-access bypass; rejected because institutional compliance strictly forbids unmonitored outbound communication.
+### Decision 15: Removal of Upstream Defaults and PostHog Mock Decoupling
+- **Decision**:
+  - Removed all default upstream hostnames, relay endpoints, and cloud origins across `server/highlevel/relay.ts`, `electron/cloud-account.mjs`, `electron/companion-account-service.mjs`, `src/components/OrganizationSettings.tsx`, `src/lib/onboarding.ts`, and `src/components/RemoteComputerSection.tsx`. All defaults now evaluate to empty string `""` or `null`.
+  - Hidden or defaulted to advanced custom forms any UI requiring external upstream endpoints when defaults are empty.
+  - Replaced legacy upstream product brand occurrences ("OpenMausBot", "MausBot Cloud") with current brand ("MyBot", "MyBot Cloud") across all 12 locale translation files and regenerated checksum hashes with `generate-locale.mjs <locale> --accept`.
+  - Updated `electron/chat-link.mjs` protocol handler to accept `mybot://thread/` and `mybot://bot/`.
+  - Decoupled product analytics tests from `posthog-js` mocks by introducing internal event listening hooks via `setAnalyticsListenerForTest()` in `src/lib/analytics.ts`.
+- **Why**: Eliminates implicit dependencies or data leakage to legacy upstream services, ensuring self-hosted privacy and brand consistency throughout runtime and tests.
+- **Alternatives**: Retaining upstream fallbacks as opt-in defaults; rejected because enterprise and institutional diligence mandates clean air-gapping by default.
+
 
 
 

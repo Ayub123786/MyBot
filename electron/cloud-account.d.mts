@@ -197,6 +197,7 @@ export declare function createCloudAccountClient(options: {
   deviceName: string;
   appVersion?: string;
   origin?: string;
+  staging?: boolean;
   /** Enables HTTP loopback only for isolated fixtures. Production main never sets it. */
   fixture?: boolean;
   fetch?: typeof fetch;

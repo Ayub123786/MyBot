@@ -2,9 +2,9 @@ import { createManagedDesktopStore, retryDelay, unreadableRecord } from "./manag
 import { CLOUD_MACHINE_CONNECTABLE, cloudUnreachableText, parseCloudCredit, parseCloudOffer, parseCloudPurchase, parseCloudSummary, parseCloudTeams, parseCloudTrial, parsePairingGrant, parsePublicOffer, withoutTrial } from "./cloud-home.mjs";
 import { cleanCode, cleanEmail, parseSignInStart, SIGN_IN_START, SIGN_IN_TRIES, SIGN_IN_VERIFY, signInIdentity, startFailure, verifyFailure } from "./cloud-signin.mjs";
 
-export const CLOUD_ORIGIN = "https://cloud.mybot.internal";
+export const CLOUD_ORIGIN = "";
 /** The staging Admin: internal address, on only with OMB_CLOUD_STAGING=1. */
-export const STAGING_CLOUD_ORIGIN = "https://cloud-staging.mybot.internal";
+export const STAGING_CLOUD_ORIGIN = "";
 /** Which Admin this app signs in to, and the files that depend on it (the sign-in, saved servers with the Cloud's
  * entry, Files' state, the Cloud's chosen name): staging never reads or writes production's. */
 export function cloudTarget(env = process.env) {
@@ -42,9 +42,10 @@ export function checkoutDestination(value, { fixture = false, staging = false } 
 }
 // Never accept an address from the renderer.
 export function cloudOrigin(value = CLOUD_ORIGIN, fixture = false) {
+  if (!value) return "";
   const url = new URL(value);
-  if (value !== url.origin || (![CLOUD_ORIGIN, STAGING_CLOUD_ORIGIN].includes(value) && !(fixture && url.protocol === "http:" && ["127.0.0.1", "[::1]"].includes(url.hostname)))) {
-    throw new Error("Invalid MausBot Cloud address.");
+  if (value !== url.origin || (![CLOUD_ORIGIN, STAGING_CLOUD_ORIGIN].filter(Boolean).includes(value) && !(fixture && url.protocol === "http:" && ["127.0.0.1", "[::1]"].includes(url.hostname)))) {
+    throw new Error("Invalid Cloud address.");
   }
   return value;
 }
@@ -62,10 +63,10 @@ const signInEnded = error => [401, 403].includes(error?.status) && error.code ==
 const sameHint = (left, right) => (left?.tier ?? null) === (right?.tier ?? null) && (left?.active ?? null) === (right?.active ?? null);
 
 export function createCloudAccountClient({ store, openBrowser, platform, deviceName, appVersion,
-  origin = CLOUD_ORIGIN, fixture = false, fetch: fetcher = globalThis.fetch, now = Date.now, onState = () => {},
+  origin = CLOUD_ORIGIN, staging: explicitStaging, fixture = false, fetch: fetcher = globalThis.fetch, now = Date.now, onState = () => {},
   setTimer = setTimeout, clearTimer = clearTimeout, warn = message => console.warn(message), awaitingWake = () => false }) {
   origin = cloudOrigin(origin, fixture);
-  const staging = origin === STAGING_CLOUD_ORIGIN;
+  const staging = explicitStaging !== undefined ? Boolean(explicitStaging) : Boolean(STAGING_CLOUD_ORIGIN) && origin === STAGING_CLOUD_ORIGIN;
   let grant = null, issued = null, cleanup = null, pending = null, cleanupNeeded = false;
   let value = { status: "signed-out", message: "restoring" }, generation = 0, timer = null, closed = false, clearing = null, refreshing = null;
   let verifiedUntil = 0, restoring = false, controller = new AbortController(), failures = 0;

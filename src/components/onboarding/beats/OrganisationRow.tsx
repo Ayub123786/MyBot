@@ -12,10 +12,12 @@ export function OrganisationRow({
   bridge,
   onOpenSettings,
   onConnected,
+  adminOrigin = DEFAULT_ADMIN_ORIGIN,
 }: {
   bridge: ManagedDesktopBridge;
   onOpenSettings: () => void;
   onConnected?: () => void;
+  adminOrigin?: string;
 }) {
   const [connection, setConnection] = useState<ManagedDesktopState | null>(null);
   const [busy, setBusy] = useState(false);
@@ -95,16 +97,16 @@ export function OrganisationRow({
         </button>
       </>
     );
-    action = (
+    action = adminOrigin ? (
       <button
         type="button"
         disabled={busy}
-        onClick={() => void perform(() => bridge.begin({ portalOrigin: DEFAULT_ADMIN_ORIGIN }))}
+        onClick={() => void perform(() => bridge.begin({ portalOrigin: adminOrigin }))}
         className="shrink-0 rounded-lg bg-accent px-3 py-1.5 text-[12.5px] font-medium text-white transition-[filter] hover:brightness-110 disabled:opacity-50"
       >
         {busy ? t("organization.working") : t("onboarding.org.signIn")}
       </button>
-    );
+    ) : null;
   } else if (connection.status === "connecting") {
     body = (
       <>

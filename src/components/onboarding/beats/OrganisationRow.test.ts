@@ -43,12 +43,13 @@ let unsubscribe = vi.fn<() => void>();
 const onOpenSettings = vi.fn();
 const onConnected = vi.fn();
 
+let activeAdminOrigin = "";
 function render() {
   fixture.index = 0;
   fixture.effects = [];
   let tree: ReactNode = null;
   function Capture() {
-    tree = OrganisationRow({ bridge, onOpenSettings, onConnected });
+    tree = OrganisationRow({ bridge, onOpenSettings, onConnected, adminOrigin: activeAdminOrigin });
     return tree;
   }
   const html = renderToStaticMarkup(createElement(Capture));
@@ -68,7 +69,7 @@ async function mount(state: ManagedDesktopState = { status: "signed-out" }) {
 
 const connecting: ManagedDesktopState = {
   status: "connecting",
-  enrollment: { userCode: "ABCDE-FGHIJ", verificationUri: "https://admin.openmausbot.com/enroll?code=ABCDE-FGHIJ", expiresAt: Date.now() + 60_000 },
+  enrollment: { userCode: "ABCDE-FGHIJ", verificationUri: "https://admin.example.test/enroll?code=ABCDE-FGHIJ", expiresAt: Date.now() + 60_000 },
 };
 const connected: ManagedDesktopState = {
   status: "connected",
@@ -82,6 +83,7 @@ const connected: ManagedDesktopState = {
 };
 
 beforeEach(() => {
+  activeAdminOrigin = "";
   fixture.values = [];
   fixture.index = 0;
   fixture.effects = [];
@@ -114,7 +116,7 @@ describe("organisation sign-in row in the welcome flow", () => {
     expect(render().html).toBe("");
     await mount();
     const html = render().html;
-    expect(html).toContain("Using OpenMausBot at work?");
+    expect(html).toContain("Using MyBot at work?");
     expect(html).toContain("Sign in with your organization.");
     expect(html).toContain("Other Admin address");
     expect(bridge.begin).not.toHaveBeenCalled();
@@ -122,18 +124,19 @@ describe("organisation sign-in row in the welcome flow", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("signs in to the default Admin once, then follows the browser step to connected", async () => {
+  it("opens settings for custom admin address and follows the browser step to connected", async () => {
     await mount();
-    const signIn = button("Sign in")!;
-    signIn.props.onClick!();
-    signIn.props.onClick!();
+    const other = button("Other Admin address")!;
+    other.props.onClick!();
+    expect(onOpenSettings).toHaveBeenCalledOnce();
+
+    push(connecting);
     await flush();
-    expect(bridge.begin).toHaveBeenCalledExactlyOnceWith({ portalOrigin: "https://admin.openmausbot.com" });
 
     let html = render().html;
     expect(html).toContain("Finish in your browser");
     expect(html).toContain("ABCDE-FGHIJ");
-    expect(html).not.toContain("Using OpenMausBot at work?");
+    expect(html).not.toContain("Using MyBot at work?");
     expect(onConnected).not.toHaveBeenCalled();
 
     push(connected);
@@ -152,7 +155,7 @@ describe("organisation sign-in row in the welcome flow", () => {
     button("Cancel sign-in")!.props.onClick!();
     await flush();
     expect(bridge.cancelEnrollment).toHaveBeenCalledOnce();
-    expect(render().html).toContain("Using OpenMausBot at work?");
+    expect(render().html).toContain("Using MyBot at work?");
   });
 
   it("sends another Admin address to Settings instead of asking here", async () => {
@@ -181,6 +184,7 @@ describe("organisation sign-in row in the welcome flow", () => {
   });
 
   it("shows product copy for a failed action, never the IPC error", async () => {
+    activeAdminOrigin = "https://admin.example.test";
     await mount();
     vi.mocked(bridge.begin).mockRejectedValueOnce(new Error("Private /path token-secret"));
     button("Sign in")!.props.onClick!();
@@ -191,6 +195,7 @@ describe("organisation sign-in row in the welcome flow", () => {
   });
 
   it("unsubscribes and ignores late answers once the beat closes", async () => {
+    activeAdminOrigin = "https://admin.example.test";
     const cleanup = await mount();
     let resolveBegin!: (state: ManagedDesktopState) => void;
     vi.mocked(bridge.begin).mockImplementation(() => new Promise((resolve) => { resolveBegin = resolve; }));

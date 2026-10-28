@@ -50,9 +50,10 @@ const until = async <T>(read: () => T, want: (value: T) => boolean, ms = 3_000):
 };
 
 describe("relay URL", () => {
-  it("defaults to accounts.openmausbot.com, accepts https or loopback http, and reads off as unavailable", () => {
-    expect(highlevelRelayUrl({})).toBe(HIGHLEVEL_RELAY_URL_DEFAULT);
-    expect(highlevelRelayUrl({ OMB_HIGHLEVEL_RELAY_URL: "" })).toBe(HIGHLEVEL_RELAY_URL_DEFAULT);
+  it("defaults to disabled (null), accepts https or loopback http, and reads off as unavailable", () => {
+    expect(HIGHLEVEL_RELAY_URL_DEFAULT).toBe("");
+    expect(highlevelRelayUrl({})).toBe(null);
+    expect(highlevelRelayUrl({ OMB_HIGHLEVEL_RELAY_URL: "" })).toBe(null);
     expect(highlevelRelayUrl({ OMB_HIGHLEVEL_RELAY_URL: "https://relay.example.test/" })).toBe("https://relay.example.test");
     expect(highlevelRelayUrl({ OMB_HIGHLEVEL_RELAY_URL: "http://127.0.0.1:4321" })).toBe("http://127.0.0.1:4321");
     expect(highlevelRelayUrl({ OMB_HIGHLEVEL_RELAY_URL: "http://relay.example.test" })).toBeNull();

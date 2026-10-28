@@ -16,8 +16,7 @@ beforeAll(() => {
   (globalThis as { document?: unknown }).document ??= { documentElement: { dataset: {} } };
 });
 
-// Pinned to Advanced: these cover the Advanced rail. Analytics (mocked below) boots PostHog on import, which wants a
-// real browser.
+// Pinned to Advanced: these cover the Advanced rail.
 vi.mock("@/lib/interface-mode", () => ({ useAdvancedMode: () => true, setAdvancedMode: () => {} }));
 vi.mock("@/lib/analytics", () => ({
   analyticsEnabled: () => false,

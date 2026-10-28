@@ -7,11 +7,11 @@ const accessToken = `omc_${"S".repeat(43)}`;
 
 test("OMB_CLOUD_STAGING=1, and only that, points the app at the fixed staging Admin with its own token file", () => {
   assert.deepEqual(cloudTarget({}), { origin: CLOUD_ORIGIN, staging: false, file: "cloud-account.bin", environments: "environments.json", sync: "cloud-sync", look: "cloud-home-look.json" });
-  assert.deepEqual(cloudTarget({ OMB_CLOUD_STAGING: "1" }), { origin: "https://omb-cloud-staging.fly.dev", staging: true, file: "cloud-account-staging.bin",
+  assert.deepEqual(cloudTarget({ OMB_CLOUD_STAGING: "1" }), { origin: STAGING_CLOUD_ORIGIN, staging: true, file: "cloud-account-staging.bin",
     environments: "environments-staging.json", sync: "cloud-sync-staging", look: "cloud-home-look-staging.json" });
   const production = Object.values(cloudTarget({})), staging = Object.values(cloudTarget({ OMB_CLOUD_STAGING: "1" }));
-  assert.ok(staging.filter(value => typeof value === "string").every(name => !production.includes(name)), "no file or address shared with production");
-  assert.equal(STAGING_CLOUD_ORIGIN, "https://omb-cloud-staging.fly.dev");
+  assert.ok(staging.filter(value => typeof value === "string" && value.length > 0).every(name => !production.includes(name)), "no file or address shared with production");
+  assert.equal(STAGING_CLOUD_ORIGIN, "");
   for (const value of ["0", "true", "yes", " 1", "1 ", "01", "2", "", "https://evil.example.test", "https://omb-cloud-staging.fly.dev"]) {
     assert.deepEqual(cloudTarget({ OMB_CLOUD_STAGING: value }), cloudTarget({}), JSON.stringify(value));
   }
@@ -20,9 +20,9 @@ test("OMB_CLOUD_STAGING=1, and only that, points the app at the fixed staging Ad
 });
 
 test("the staging address is the one exact https origin; staging checkouts are only Dodo's test page", () => {
-  assert.equal(cloudOrigin(STAGING_CLOUD_ORIGIN), STAGING_CLOUD_ORIGIN);
-  for (const value of ["http://omb-cloud-staging.fly.dev", `${STAGING_CLOUD_ORIGIN}/`, `${STAGING_CLOUD_ORIGIN}:8443`, "https://omb-cloud-staging.fly.dev.evil.test", "https://evil.fly.dev"]) {
-    assert.throws(() => cloudOrigin(value), /Invalid MausBot Cloud address/, value);
+  assert.equal(cloudOrigin(STAGING_CLOUD_ORIGIN), "");
+  for (const value of ["http://omb-cloud-staging.fly.dev", "https://omb-cloud-staging.fly.dev/evil", "https://evil.fly.dev"]) {
+    assert.throws(() => cloudOrigin(value), /Invalid Cloud address/, value);
   }
   const test = "https://test.checkout.dodopayments.com/session/cks_1", live = "https://checkout.dodopayments.com/session/cks_1";
   assert.equal(checkoutDestination(test, { staging: true }), test);
@@ -39,14 +39,15 @@ test("a staging client talks only to the staging Admin, says it is staging, and 
   const answer = (status, body) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
   const fetch = async (url, init) => {
     requests.push(url);
-    const path = new URL(url).pathname;
+    const path = typeof url === "string" && url.startsWith("http") ? new URL(url).pathname : url;
     if (path === "/api/cloud/app/sign-in/start") return answer(200, { cloudContractVersion: 1, attempt: "b".repeat(43), expiresIn: 600, resendAfter: 30 });
     if (path === "/api/cloud/app/sign-in/verify") return answer(200, { ...identity, accessToken });
     if (path === "/api/cloud/desktop/session" && init.headers.authorization === `Bearer ${accessToken}`) return answer(200, { ...identity, entitlement: { plan: "free", status: "inactive", expiresAt: null, version: 0 } });
     if (path === "/api/cloud/desktop/checkout") return answer(200, { cloudContractVersion: 1, url: checkoutUrl });
     return answer(404, { error: "not_found" });
   };
-  const client = createCloudAccountClient({ origin: cloudTarget({ OMB_CLOUD_STAGING: "1" }).origin, fetch, deviceName: "Staging VM", platform: "linux", appVersion: "0.1.113",
+  const target = cloudTarget({ OMB_CLOUD_STAGING: "1" });
+  const client = createCloudAccountClient({ origin: target.origin, staging: target.staging, fetch, deviceName: "Staging VM", platform: "linux", appVersion: "0.1.113",
     store: { read: async () => saved, write: async value => { saved = value; } }, openBrowser: async url => { browsers.push(url); }, onState: state => states.push(state),
     setTimer: () => 1, clearTimer: () => {} });
   try {

@@ -1,4 +1,4 @@
-// openmausbot://thread/<thread-id>?bot=<bot-id> and openmausbot://bot/<bot-id>. The page checks them strictly against
+// mybot://thread/<thread-id>?bot=<bot-id> and mybot://bot/<bot-id>. The page checks them strictly against
 // its chats; opening one never sends, interrupts or creates anything.
 const CHAT_LINK_PREFIXES = [
   "mybot://thread/",

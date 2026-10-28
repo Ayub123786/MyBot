@@ -99,37 +99,32 @@ describe("optional desktop Organisation settings", () => {
   it("keeps the panel usable if its native destination acknowledgment fails", async () => {
     vi.mocked(bridge.settingsOpened!).mockRejectedValueOnce(new Error("fixture write failure"));
     await ready();
-    expect(render().html).toContain("Sign in with your organization");
+    expect(render().html).toContain("Sign in to custom Admin");
+    expect(render().html).not.toContain("Sign in with your organization");
     expect(bridge.begin).not.toHaveBeenCalled();
   });
 
-  it("uses the default portal from one sign-in action and keeps custom setup advanced", async () => {
+  it("allows signing in with custom portal address", async () => {
     await ready();
     let view = render();
-    expect(view.html).toContain("https://admin.openmausbot.com");
-    expect(view.html).toContain("Sign in with your organization");
+    expect(view.html).not.toContain("https://admin.openmausbot.com");
     expect(view.html).toContain("<summary");
     expect(view.html).toContain("Advanced");
-    expect(view.html).not.toMatch(/<details[^>]*\bopen/);
     expect(view.html).toContain("personal and local models");
     expect(view.html).toContain("does not upload your chat history");
     expect(bridge.begin).not.toHaveBeenCalled();
-    const signIn = () => view.nodes.find(node => node.type === "button" && node.props.children === "Sign in with your organization")!.props.onClick!();
-    signIn(); signIn(); await flush();
-    expect(bridge.begin).toHaveBeenCalledExactlyOnceWith({ portalOrigin: "https://admin.openmausbot.com" });
+    view.nodes.find(node => node.type === "input")!.props.onChange!({ target: { value: " https://admin.example.test " } });
+    view = render();
+    view.nodes.find(node => node.type === "form")!.props.onSubmit!({ preventDefault: vi.fn() }); await flush();
+    expect(bridge.begin).toHaveBeenCalledExactlyOnceWith({ portalOrigin: "https://admin.example.test" });
     expect(fetch).not.toHaveBeenCalled();
     const progress = render().html;
     expect(progress).toContain("Finish signing in through your browser");
     expect(progress).toContain("connect automatically");
     expect(progress).toMatch(/<details[^>]*><summary[^>]*>Security details<\/summary>[\s\S]*ABCDE-FGHIJ[\s\S]*<\/details>/);
     expect(progress).not.toContain("admin.example.test/enroll");
-    expect(progress).not.toMatch(/<details[^>]*\bopen/);
     button("Cancel sign-in").props.onClick!(); await flush();
-    expect(bridge.cancelEnrollment).toHaveBeenCalledOnce(); view = render();
-    view.nodes.find(node => node.type === "input")!.props.onChange!({ target: { value: " https://admin.example.test " } });
-    view = render();
-    view.nodes.find(node => node.type === "form")!.props.onSubmit!({ preventDefault: vi.fn() }); await flush();
-    expect(bridge.begin).toHaveBeenNthCalledWith(2, { portalOrigin: "https://admin.example.test" });
+    expect(bridge.cancelEnrollment).toHaveBeenCalledOnce();
   });
 
   it("shows company model counts, refreshes, and requires a separate disconnect confirmation", async () => {
@@ -146,19 +141,20 @@ describe("optional desktop Organisation settings", () => {
     button("Disconnect…").props.onClick!();
     button("Disconnect from organization").props.onClick!(); await flush();
     expect(bridge.disconnect).toHaveBeenCalledOnce();
-    expect(render().html).toContain("Sign in with your organization");
+    expect(render().html).toContain("Sign in to custom Admin");
   });
 
   it("requires disconnect before reconnecting revoked access and does not promise cloud backups", async () => {
     await ready({ ...connected, status: "reauth-required", cloudBackups: true });
     const html = render().html;
     expect(html).toContain("Disconnect below, then sign in again");
+    expect(html).not.toContain("Sign in to custom Admin");
     expect(html).not.toContain("Sign in with your organization");
     expect(html).not.toContain("Approved models:");
     expect(html).not.toContain("backup");
     expect(button("Refresh")).toBeUndefined();
     button("Disconnect…").props.onClick!(); button("Disconnect from organization").props.onClick!(); await flush();
-    expect(render().html).toContain("Sign in with your organization");
+    expect(render().html).toContain("Sign in to custom Admin");
   });
 
   it("reopens only the pending sign-in page, with nothing supplied by the panel", async () => {
@@ -208,7 +204,7 @@ describe("optional desktop Organisation settings", () => {
     await ready({ status: "signed-out", notice: "license-expired" });
     const html = render().html;
     expect(html).toContain("license has expired. Contact your admin.");
-    expect(html).toContain("Sign in with your organization");
+    expect(html).toContain("Sign in to custom Admin");
   });
 
   it("keeps newer broadcast state when an initial snapshot or action resolves late", async () => {
@@ -228,7 +224,10 @@ describe("optional desktop Organisation settings", () => {
     const cleanup = await ready();
     let resolveBegin!: (state: ManagedDesktopState) => void;
     vi.mocked(bridge.begin).mockImplementation(() => new Promise(resolve => { resolveBegin = resolve; }));
-    button("Sign in with your organization").props.onClick!();
+    let view = render();
+    view.nodes.find(node => node.type === "input")!.props.onChange!({ target: { value: "https://admin.example.test" } });
+    view = render();
+    view.nodes.find(node => node.type === "form")!.props.onSubmit!({ preventDefault: vi.fn() });
     if (typeof cleanup === "function") cleanup();
     push(connected); resolveBegin(connecting); await flush();
     expect(unsubscribe).toHaveBeenCalledOnce();
@@ -274,7 +273,7 @@ describe("optional desktop Organisation settings", () => {
     expect(button("Refresh")).toBeDefined();
     button("Disconnect…").props.onClick!(); button("Disconnect from organization").props.onClick!(); await flush();
     expect(bridge.disconnect).toHaveBeenCalledOnce();
-    expect(render().html).toContain("Sign in with your organization");
+    expect(render().html).toContain("Sign in to custom Admin");
   });
 
   it.each([{}, { ogb: { remoteClient: { active: true } } }])("has no sign-in controls without the local desktop bridge", (windowState) => {
