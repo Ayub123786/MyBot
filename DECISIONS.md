@@ -115,3 +115,11 @@ This log records non-trivial decisions made during the MyBot transformation, rat
 - **Why**: Completes institutional deliverables and provides production packaging readiness for Windows-targeted investment teams.
 - **Alternatives**: None needed.
 
+---
+
+### Decision 13: Consistent .ts Extension for Shared Sibling Imports
+- **Decision**: In `shared/registry-save-failure.ts`, import sibling modules using `.ts` extension (`import { APP_NAME } from "./brand.ts"`), matching the convention used in `failed-turn.ts` and `place-view.ts`.
+- **Why**: Node.js 24 running under `--experimental-strip-types` cannot resolve `.js` specifiers when only `.ts` source files exist in the repository without precompiled outputs.
+- **Alternatives**: Running a pre-compile step before dev server launch; rejected because direct TypeScript execution is the repository's established dev workflow.
+
+
