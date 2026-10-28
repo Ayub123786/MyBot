@@ -2423,7 +2423,7 @@
   "onboarding.tour.skip": "Skip tour",
   "onboarding.tour.finish": "Finish",
   "onboarding.tour.next": "Next",
-  "onboarding.tour.composer": "Direct your diligence analysts here. Every chat contact is an autonomous agent specialized in deal analysis.",
+  "onboarding.tour.composer": "Direct your diligence analysts here. Type your prompt and press {key}. Every chat contact is an autonomous agent specialized in deal analysis.",
   "onboarding.tour.model": "Every bot has its own brain. This chip shows the model; click it to switch, even mid-conversation.",
   "onboarding.tour.computer": "Monitor analytical execution. View live research runs, data room parsing, and browser sessions.",
   "onboarding.tour.model-simple": "Click the bot's name up here to open its panel. Its instructions, schedules and apps are on the Details tab, and you can change them any time.",

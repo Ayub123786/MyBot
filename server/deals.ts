@@ -560,7 +560,7 @@ export function exportMemoPdfHtml(dealOrId: string | Deal): string {
     .replace(/^# (.*$)/gim, '<h1 class="memo-title">$1</h1>')
     .replace(/^## (.*$)/gim, '<h2 class="memo-section">$1</h2>')
     .replace(/^### (.*$)/gim, '<h3 class="memo-subsection">$1</h3>')
-    .replace(/^\- (.*$)/gim, '<li>$1</li>')
+    .replace(/^- (.*$)/gim, '<li>$1</li>')
     .replace(/\n\n/gim, '<p></p>');
 
   return `<!DOCTYPE html>

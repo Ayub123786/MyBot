@@ -2,9 +2,9 @@ import { createManagedDesktopStore, retryDelay, unreadableRecord } from "./manag
 import { CLOUD_MACHINE_CONNECTABLE, cloudUnreachableText, parseCloudCredit, parseCloudOffer, parseCloudPurchase, parseCloudSummary, parseCloudTeams, parseCloudTrial, parsePairingGrant, parsePublicOffer, withoutTrial } from "./cloud-home.mjs";
 import { cleanCode, cleanEmail, parseSignInStart, SIGN_IN_START, SIGN_IN_TRIES, SIGN_IN_VERIFY, signInIdentity, startFailure, verifyFailure } from "./cloud-signin.mjs";
 
-export const CLOUD_ORIGIN = "https://cloud.openmausbot.com";
-/** The staging Admin (Dodo test mode, real test Clouds): a fixed address, on only with OMB_CLOUD_STAGING=1. */
-export const STAGING_CLOUD_ORIGIN = "https://omb-cloud-staging.fly.dev";
+export const CLOUD_ORIGIN = "https://cloud.mybot.internal";
+/** The staging Admin: internal address, on only with OMB_CLOUD_STAGING=1. */
+export const STAGING_CLOUD_ORIGIN = "https://cloud-staging.mybot.internal";
 /** Which Admin this app signs in to, and the files that depend on it (the sign-in, saved servers with the Cloud's
  * entry, Files' state, the Cloud's chosen name): staging never reads or writes production's. */
 export function cloudTarget(env = process.env) {

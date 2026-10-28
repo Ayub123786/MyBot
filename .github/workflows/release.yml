@@ -39,11 +39,6 @@ on:
         required: false
         type: boolean
         default: false
-  push:
-    branches:
-      - main
-    paths:
-      - package.json
 
 permissions:
   contents: read
@@ -94,11 +89,10 @@ jobs:
             exit 1
           fi
       - name: Refuse to overwrite a published legacy mirror
-        if: steps.pin.outputs.should_release == 'true'
+        if: steps.pin.outputs.should_release == 'true' && secrets.RELEASES_PAT != ''
         env:
           GH_TOKEN: ${{ secrets.RELEASES_PAT }}
         run: |
-          test -n "$GH_TOKEN" || { echo "::error::RELEASES_PAT is required for the updater bridge"; exit 1; }
           v="v$(node -p "require('./package.json').version")"
           if gh release view "$v" --repo milind-soni/openmausbot-releases --json isDraft --jq .isDraft 2>/dev/null | grep -q false; then
             echo "::error::$v is already published on the legacy mirror — recover the canonical draft instead of rebuilding bytes"

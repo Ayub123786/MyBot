@@ -75,7 +75,7 @@ The installer will be generated in `release/MyBot-<version>-setup.exe`.
 
 MyBot is licensed under the **Apache License, Version 2.0**.
 
-Based on **OpenMausBot** by Milind Soni.  
+Based on OpenMausBot by Milind Soni (Apache-2.0).  
 Original copyright &copy; 2026 Milind Soni and OpenMausBot contributors.
 
 See [LICENSE](LICENSE), [NOTICE](NOTICE), and [LICENSING.md](LICENSING.md) for full terms.

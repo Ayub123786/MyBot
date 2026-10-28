@@ -97,7 +97,7 @@ describe("Phase 5: Outbound Tool Gates & Safety Floor", () => {
     }
   });
 
-  it("triggers outbound-guard verdict requiring human approval in auto mode", () => {
+  it("triggers outbound-guard verdict requiring human approval in EVERY mode including full access", () => {
     const verdict = autoVerdict("auto", "SENDGRID_EMAIL");
     expect(verdict.approve).toBeNull();
     expect(verdict.source).toBe("outbound-guard");
@@ -105,6 +105,15 @@ describe("Phase 5: Outbound Tool Gates & Safety Floor", () => {
     const wireVerdict = autoVerdict("auto", "MERCURY_WIRE_FUNDS");
     expect(wireVerdict.approve).toBeNull();
     expect(wireVerdict.source).toBe("outbound-guard");
+
+    // Full access mode MUST also require human approval for outbound tools
+    const fullVerdict = autoVerdict("full", "SENDGRID_EMAIL");
+    expect(fullVerdict.approve).toBeNull();
+    expect(fullVerdict.source).toBe("outbound-guard");
+
+    const fullWireVerdict = autoVerdict("full", "MERCURY_WIRE_FUNDS");
+    expect(fullWireVerdict.approve).toBeNull();
+    expect(fullWireVerdict.source).toBe("outbound-guard");
   });
 
   it("allows internal drafting and read operations without triggering outbound guard", () => {

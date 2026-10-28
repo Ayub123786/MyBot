@@ -1,4 +1,4 @@
-import { APP_NAME } from "./brand.js";
+import { APP_NAME } from "./brand.ts";
 
 const HELD_OR_READ_ONLY = new Set(["EPERM", "EACCES", "EBUSY", "EROFS"]);
 

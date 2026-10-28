@@ -11,6 +11,8 @@ test("recognizes the links Copy link and a dashboard make", () => {
   assert.equal(chatLinkFrom(BOT_LINK), BOT_LINK);
   assert.equal(chatLinkFrom(` ${BOT_LINK}\n`), BOT_LINK);
   assert.equal(chatLinkFrom("OpenMausBot://Bot/abc"), "OpenMausBot://Bot/abc");
+  assert.equal(chatLinkFrom("mybot://thread/abc?bot=xyz"), "mybot://thread/abc?bot=xyz");
+  assert.equal(chatLinkFrom("mybot://bot/xyz"), "mybot://bot/xyz");
 });
 
 test("leaves every other link to its own handler", () => {
