@@ -1,9 +1,9 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
 
-import { extractTextAndTables } from "./deal-document-extractor.ts";
+import { extractDocumentContent, extractTextAndTables } from "./deal-document-extractor.ts";
 import {
   assertDealIsolation,
   buildDocxArchive,
@@ -13,6 +13,7 @@ import {
 
 describe("Phase 4: Deals, Data Room Isolation, and Diligence Integrations", () => {
   let tempDir: string;
+  const fixturesDir = join(process.cwd(), "server", "fixtures");
 
   beforeEach(() => {
     tempDir = mkdtempSync(join(tmpdir(), "mybot-deals-test-"));
@@ -55,6 +56,73 @@ describe("Phase 4: Deals, Data Room Isolation, and Diligence Integrations", () =
       expect(result.text).toBe(textContent);
       expect(result.wordCount).toBe(9);
       expect(result.tables.length).toBe(0);
+    });
+
+    it("extracts real binary PDF document with text stream", () => {
+      const pdfPath = join(fixturesDir, "sample-deal-memo.pdf");
+      expect(existsSync(pdfPath)).toBe(true);
+
+      const result = extractDocumentContent(pdfPath, "sample-deal-memo.pdf", "application/pdf");
+      expect(result.text).toContain("ApexFlow AI Series A Diligence Memo");
+      expect(result.text).toContain("Target Valuation: $35M Pre-Money");
+      expect(result.text).toContain("ARR: $3.2M with 142% YoY growth");
+      expect(result.wordCount).toBeGreaterThan(10);
+      expect(result.tables.length).toBe(0);
+    });
+
+    it("reports clear 'no text found, OCR needed' status for real scanned/image-only PDF without crashing or silent empty text", () => {
+      const scannedPdfPath = join(fixturesDir, "sample-scanned.pdf");
+      expect(existsSync(scannedPdfPath)).toBe(true);
+
+      const result = extractDocumentContent(scannedPdfPath, "sample-scanned.pdf", "application/pdf");
+      expect(result.text).toContain("no text found, OCR needed");
+      expect(result.text).not.toBe("");
+      expect(result.wordCount).toBe(0);
+      expect(result.metadata?.ocrNeeded).toBe(true);
+      expect(result.metadata?.status).toBe("no text found, OCR needed");
+      expect(result.tables.length).toBe(0);
+    });
+
+    it("extracts real binary DOCX document with text paragraphs and tables", () => {
+      const docxPath = join(fixturesDir, "sample-due-diligence.docx");
+      expect(existsSync(docxPath)).toBe(true);
+
+      const result = extractDocumentContent(docxPath, "sample-due-diligence.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+      expect(result.text).toContain("ApexFlow AI Commercial Diligence Overview");
+      expect(result.text).toContain("Executive summary of key findings and investment thesis.");
+      expect(result.wordCount).toBeGreaterThan(10);
+      expect(result.tables.length).toBe(1);
+      expect(result.tables[0].headers).toEqual(["Metric", "FY2024", "FY2025"]);
+      expect(result.tables[0].rows).toContainEqual(["ARR", "$1.32M", "$3.20M"]);
+      expect(result.tables[0].rows).toContainEqual(["Gross Margin", "74.2%", "78.4%"]);
+    });
+
+    it("extracts real binary XLSX spreadsheet with shared strings and tables", () => {
+      const xlsxPath = join(fixturesDir, "sample-financial-model.xlsx");
+      expect(existsSync(xlsxPath)).toBe(true);
+
+      const result = extractDocumentContent(xlsxPath, "sample-financial-model.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      expect(result.text).toContain("Sheet 1");
+      expect(result.text).toContain("ARR");
+      expect(result.text).toContain("3200000");
+      expect(result.tables.length).toBe(1);
+      expect(result.tables[0].headers).toEqual(["Metric", "FY2024", "FY2025"]);
+      expect(result.tables[0].rows).toContainEqual(["ARR", "1320000", "3200000"]);
+      expect(result.tables[0].rows).toContainEqual(["Net Burn", "120000", "165000"]);
+    });
+
+    it("extracts real binary PPTX presentation slides", () => {
+      const pptxPath = join(fixturesDir, "sample-pitch-deck.pptx");
+      expect(existsSync(pptxPath)).toBe(true);
+
+      const result = extractDocumentContent(pptxPath, "sample-pitch-deck.pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation");
+      expect(result.text).toContain("--- Slide 1 ---");
+      expect(result.text).toContain("ApexFlow AI Executive Pitch Deck");
+      expect(result.text).toContain("Autonomous Workflow Synthesis Platform");
+      expect(result.text).toContain("--- Slide 2 ---");
+      expect(result.text).toContain("Financial Highlights & Unit Economics");
+      expect(result.text).toContain("142% Year-over-Year ARR Expansion to $3.2M");
+      expect(result.wordCount).toBeGreaterThan(15);
     });
   });
 

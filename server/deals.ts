@@ -366,7 +366,7 @@ export function addDealFinding(dealId: string, finding: Omit<DealFinding, "id" |
 /**
  * Pure TypeScript ZIP builder for generating .docx openxml packages without external libraries.
  */
-function createZipArchive(files: Record<string, string | Buffer>): Buffer {
+export function createZipArchive(files: Record<string, string | Buffer>): Buffer {
   const entries: Array<{ name: string; compressed: Buffer; originalSize: number; crc: number; offset: number }> = [];
   const parts: Buffer[] = [];
   let currentOffset = 0;

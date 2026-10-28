@@ -161,3 +161,20 @@ This log records non-trivial decisions made during the MyBot transformation, rat
   - Updated assertions in `src/components/CloudAccountSettings.test.ts` and `src/components/onboarding/beats/CloudBeat.test.ts` from legacy brand ("MausBot Cloud" / "OpenMausBot") to current brand ("MyBot Cloud" / "MyBot"), confirming all 64 tests across affected test suites pass cleanly.
 - **Why**: Eliminates consumer cloud upsell noise and preserves a clean, self-hosted, institutional deployment experience.
 - **Alternatives**: Completely deleting `CloudAccountSettings.tsx`; rejected because users connecting a self-hosted cloud instance in enterprise deployments still need account status inspection.
+
+---
+
+### Decision 18: Real Binary Fixtures and Multi-Format Document Extraction
+- **Decision**:
+  - Added real binary fixture files under `server/fixtures/`:
+    - `sample-deal-memo.pdf`: Standard binary PDF 1.4 document containing vector text streams (`BT ... ET`, Helvetica).
+    - `sample-scanned.pdf`: Standard binary PDF 1.4 image-only document containing an XObject Image and zero text elements.
+    - `sample-due-diligence.docx`: Valid Office Open XML `.docx` zip archive containing paragraphs and structured financial evaluation tables (`word/document.xml`).
+    - `sample-financial-model.xlsx`: Valid Office Open XML `.xlsx` spreadsheet archive containing workbook relations, shared strings (`xl/sharedStrings.xml`), and multi-row financial metrics (`xl/worksheets/sheet1.xml`).
+    - `sample-pitch-deck.pptx`: Valid Office Open XML `.pptx` presentation archive containing multi-slide executive pitch deck text (`ppt/slides/slide1.xml`, `ppt/slides/slide2.xml`).
+  - Updated `server/deal-document-extractor.ts`:
+    - Enhanced `readZipEntries` with robust two-phase zip parsing: first Local File Header traversal (`0x04034b50`), followed by backward Central Directory inspection (`0x06054b50` EOCD) to guarantee decompression of archives with data descriptors.
+    - Enhanced `extractFromPdf`: when no text streams are found (e.g. image-only / scanned PDFs), returns explicit `"[PDF text extraction: no text found, OCR needed]"` with `wordCount: 0` and `metadata: { ocrNeeded: true, status: "no text found, OCR needed" }`, preventing silent empty strings or false confidence.
+  - Added comprehensive verification tests in `server/deals.test.ts` validating full parsing across all 5 binary formats, confirming exact table extraction, text extraction, and OCR status reporting. All 16 tests in `server/deals.test.ts` pass cleanly.
+- **Why**: Institutional data rooms contain diverse binary document types; extractors must reliably parse real archives and honestly report when documents require OCR rather than silently dropping content.
+- **Alternatives**: Mocking file buffers in unit tests; rejected because real binary fixtures ensure decompression and parser correctness against actual OpenXML and PDF specifications.

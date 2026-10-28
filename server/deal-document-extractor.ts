@@ -17,13 +17,13 @@ export interface ExtractedDocumentContent {
   metadata?: Record<string, unknown>;
 }
 
-// Minimal zip reader to extract specific XML files from .docx, .pptx, .xlsx
+// Zip reader supporting both Local File Header traversal and Central Directory fallback
 function readZipEntries(buffer: Buffer): Map<string, Buffer> {
   const entries = new Map<string, Buffer>();
   let offset = 0;
 
+  // 1. Try Local File Header traversal (PK\x03\x04)
   while (offset < buffer.length - 30) {
-    // Check for Local File Header signature (0x04034b50 -> 'PK\x03\x04')
     if (buffer.readUInt32LE(offset) !== 0x04034b50) {
       break;
     }
@@ -40,10 +40,8 @@ function readZipEntries(buffer: Buffer): Map<string, Buffer> {
 
     let fileData: Buffer;
     if (compression === 0) {
-      // Stored (no compression)
       fileData = compressedData;
     } else if (compression === 8) {
-      // Deflated
       try {
         fileData = inflateRawSync(compressedData);
       } catch {
@@ -55,6 +53,55 @@ function readZipEntries(buffer: Buffer): Map<string, Buffer> {
 
     entries.set(fileName, fileData);
     offset = dataStart + compressedSize;
+  }
+
+  if (entries.size > 0) {
+    return entries;
+  }
+
+  // 2. Central Directory fallback for archives with data descriptors or end-of-archive layout
+  try {
+    let eocdOffset = -1;
+    for (let i = buffer.length - 22; i >= Math.max(0, buffer.length - 65557); i--) {
+      if (buffer.readUInt32LE(i) === 0x06054b50) {
+        eocdOffset = i;
+        break;
+      }
+    }
+    if (eocdOffset >= 0) {
+      const totalEntries = buffer.readUInt16LE(eocdOffset + 10);
+      const cdOffset = buffer.readUInt32LE(eocdOffset + 16);
+      let cdPos = cdOffset;
+      for (let i = 0; i < totalEntries && cdPos < buffer.length - 46; i++) {
+        if (buffer.readUInt32LE(cdPos) !== 0x02014b50) break;
+        const compression = buffer.readUInt16LE(cdPos + 10);
+        const compSize = buffer.readUInt32LE(cdPos + 20);
+        const fnLen = buffer.readUInt16LE(cdPos + 28);
+        const extraLen = buffer.readUInt16LE(cdPos + 30);
+        const commentLen = buffer.readUInt16LE(cdPos + 32);
+        const localHdrOffset = buffer.readUInt32LE(cdPos + 42);
+        const fileName = buffer.toString("utf8", cdPos + 46, cdPos + 46 + fnLen);
+
+        if (localHdrOffset < buffer.length - 30 && buffer.readUInt32LE(localHdrOffset) === 0x04034b50) {
+          const localFnLen = buffer.readUInt16LE(localHdrOffset + 26);
+          const localExtraLen = buffer.readUInt16LE(localHdrOffset + 28);
+          const dataStart = localHdrOffset + 30 + localFnLen + localExtraLen;
+          const compData = buffer.subarray(dataStart, dataStart + compSize);
+          let fileData: Buffer;
+          if (compression === 0) {
+            fileData = compData;
+          } else if (compression === 8) {
+            try { fileData = inflateRawSync(compData); } catch { fileData = Buffer.alloc(0); }
+          } else {
+            fileData = Buffer.alloc(0);
+          }
+          entries.set(fileName, fileData);
+        }
+        cdPos += 46 + fnLen + extraLen + commentLen;
+      }
+    }
+  } catch {
+    // fallback ignore
   }
 
   return entries;
@@ -304,7 +351,16 @@ export function extractFromPdf(buffer: Buffer): ExtractedDocumentContent {
       }
     }
 
-    const extractedText = textPieces.join("\n").trim() || "[PDF text extraction: Scanned or binary PDF document loaded]";
+    const extractedText = textPieces.join("\n").trim();
+    if (!extractedText) {
+      return {
+        text: "[PDF text extraction: no text found, OCR needed]",
+        wordCount: 0,
+        tables: [],
+        metadata: { ocrNeeded: true, status: "no text found, OCR needed" },
+      };
+    }
+
     return {
       text: extractedText,
       wordCount: extractedText.split(/\s+/).filter(Boolean).length,
