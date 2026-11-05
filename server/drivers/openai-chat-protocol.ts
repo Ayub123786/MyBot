@@ -3,6 +3,7 @@ export interface ChatToolCall {
   id: string;
   type: "function";
   function: { name: string; arguments: string };
+  extra_content?: Record<string, unknown>;
 }
 
 /** Calls one model reply may carry (its index bound). */
@@ -36,16 +37,49 @@ export class ChatReasoningDetails {
 /** One accumulator per completion: indexes identify deltas; IDs correlate results. */
 export class ChatToolCalls {
   private calls = new Map<number, ChatToolCall>();
+  private idToIndex = new Map<string, number>();
   private argumentChars = 0;
 
   add(value: unknown, streaming: boolean): void {
     if (value === undefined || value === null) return;
     if (!Array.isArray(value)) throw new ChatProtocolError("provider returned invalid tool_calls");
-    const omitted = (field: unknown) => field === undefined || (streaming && field === null);
+    const omitted = (field: unknown) => field === undefined || (streaming && (field === null || field === ""));
     for (const [position, raw] of value.entries()) {
       const delta = object(raw);
-      const index = streaming ? delta?.index : position;
-      if (!delta || !Number.isInteger(index) || Number(index) < 0 || Number(index) >= MAX_REPLY_TOOL_CALLS) {
+      if (!delta) {
+        throw new ChatProtocolError("provider returned an invalid tool call");
+      }
+      const parsedIndex = typeof delta.index === "number"
+        ? delta.index
+        : typeof delta.index === "string" && /^\d+$/.test(delta.index)
+        ? Number(delta.index)
+        : undefined;
+
+      let index: number;
+      if (parsedIndex !== undefined) {
+        index = parsedIndex;
+      } else if (typeof delta.id === "string" && delta.id && this.idToIndex.has(delta.id)) {
+        index = this.idToIndex.get(delta.id)!;
+      } else if (streaming) {
+        if (typeof delta.id === "string" && delta.id) {
+          const existingAtPosition = this.calls.get(position);
+          if (existingAtPosition?.id && existingAtPosition.id !== delta.id) {
+            index = this.calls.size;
+          } else {
+            index = position;
+          }
+        } else {
+          if (value.length === 1 && this.calls.size > 0) {
+            index = this.calls.size - 1;
+          } else {
+            index = position;
+          }
+        }
+      } else {
+        index = position;
+      }
+
+      if (!Number.isInteger(index) || Number(index) < 0 || Number(index) >= MAX_REPLY_TOOL_CALLS) {
         throw new ChatProtocolError("provider returned an invalid tool-call index");
       }
       const call = this.calls.get(Number(index)) ?? { id: "", type: "function", function: { name: "", arguments: "" } };
@@ -55,6 +89,13 @@ export class ChatToolCalls {
           throw new ChatProtocolError("provider changed or omitted a tool-call ID");
         }
         call.id = delta.id;
+        this.idToIndex.set(delta.id, Number(index));
+      }
+      if (delta.extra_content !== undefined) {
+        const extra = object(delta.extra_content);
+        if (extra) {
+          call.extra_content = { ...(call.extra_content ?? {}), ...extra };
+        }
       }
       if (delta.function !== undefined) {
         const fn = object(delta.function);
@@ -83,8 +124,11 @@ export class ChatToolCalls {
       throw new ChatProtocolError("provider tool calls were truncated or malformed");
     }
     const ids = new Set<string>();
-    for (const call of calls) {
-      if (!call.id || ids.has(call.id) || !/^[A-Za-z0-9_-]{1,64}$/.test(call.function.name)) {
+    for (const [pos, call] of calls.entries()) {
+      if (!call.id) {
+        call.id = `call_synthetic_${pos}_${Math.random().toString(36).slice(2, 10)}`;
+      }
+      if (ids.has(call.id) || !/^[A-Za-z0-9_-]{1,64}$/.test(call.function.name)) {
         throw new ChatProtocolError("provider returned an incomplete or duplicate tool call");
       }
       ids.add(call.id);

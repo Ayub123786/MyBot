@@ -18,6 +18,31 @@ describe("streamed chat tool calls", () => {
     expect(calls.finish("tool_calls", false)).toEqual([completeCall]);
   });
 
+  it("tolerates omitted index in streaming mode (Google Gemini compatible)", () => {
+    const calls = new ChatToolCalls();
+    calls.add([{ ...completeCall, function: { ...completeCall.function, arguments: "{}" } }], true);
+    expect(calls.finish("tool_calls", false)).toEqual([completeCall]);
+  });
+
+  it("handles multiple tool calls streamed without index in separate chunks (Google Gemini pattern)", () => {
+    const calls = new ChatToolCalls();
+    calls.add([{ id: "call_1", type: "function", function: { name: "get_weather", arguments: "{\"city\":\"Tokyo\"}" }, extra_content: { google: { thought_signature: "sig1" } } }], true);
+    calls.add([{ id: "call_2", type: "function", function: { name: "get_time", arguments: "{\"tz\":\"JST\"}" } }], true);
+    expect(calls.finish("stop", false)).toEqual([
+      { id: "call_1", type: "function", function: { name: "get_weather", arguments: "{\"city\":\"Tokyo\"}" }, extra_content: { google: { thought_signature: "sig1" } } },
+      { id: "call_2", type: "function", function: { name: "get_time", arguments: "{\"tz\":\"JST\"}" } },
+    ]);
+  });
+
+  it("tolerates empty id during streaming and assigns synthetic id", () => {
+    const calls = new ChatToolCalls();
+    calls.add([{ id: "", type: "function", function: { name: "echo", arguments: "{}" } }], true);
+    const result = calls.finish("stop", false);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toMatch(/^call_synthetic_/);
+    expect(result[0].function.name).toBe("echo");
+  });
+
   it("still rejects incomplete calls after null-only deltas", () => {
     const calls = new ChatToolCalls();
     calls.add([{ index: 0, id: null, type: null, function: { name: null, arguments: null } }], true);
