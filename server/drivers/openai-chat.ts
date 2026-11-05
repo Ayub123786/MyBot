@@ -447,11 +447,17 @@ export function createOpenAIChatRuntime<Config>(options: RuntimeOptions<Config>)
           const { done, value } = await reader.read();
           if (done) {
             buffer += decoder.decode();
+            let newline: number;
+            while ((newline = buffer.indexOf("\n")) !== -1) {
+              const line = buffer.slice(0, newline).trim();
+              buffer = buffer.slice(newline + 1);
+              if (consumeDataLine(line, true)) break readLoop;
+            }
             const line = buffer.trim();
             if (line && line !== "data: [DONE]") consumeDataLine(line, true);
             // MiniMax's api.minimax.io/v1 closes the connection after the
             // finish_reason chunk and never sends `[DONE]`.
-            if (buffer.trim() === "data: [DONE]" || finishReason) break;
+            if (line === "data: [DONE]" || buffer.trim() === "data: [DONE]" || finishReason) break;
             if (!sawChoice) {
               let body: CompletionJson | undefined;
               try { body = JSON.parse(buffer) as CompletionJson; } catch { body = undefined; }
