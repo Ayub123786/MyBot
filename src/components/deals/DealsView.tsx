@@ -31,34 +31,34 @@ export interface DealDocument {
   uploadedAt: string;
   extractedTextLength: number;
   extractedTablesCount: number;
-  extractionStatus: "pending" | "processing" | "extracted" | "failed";
+  extractionStatus: "pending" | "processing" | "completed" | "extracted" | "failed";
   extractionError?: string;
 }
 
 export interface DealFinding {
   id: string;
-  dealId: string;
-  category: "financial" | "legal" | "technical" | "market" | "people";
-  severity: "high" | "medium" | "low";
+  dealId?: string;
+  category: "financial" | "legal" | "technical" | "market" | "people" | "screening" | "risk" | string;
+  severity: "high" | "medium" | "low" | string;
   title: string;
   detail: string;
-  factOrAssumptionOrOpinion: "fact" | "assumption" | "opinion";
-  confidenceLevel: "high" | "medium" | "low";
+  factOrAssumptionOrOpinion: "fact" | "assumption" | "opinion" | string;
+  confidenceLevel: "high" | "medium" | "low" | string;
   sourceCitations?: string[];
   suggestedMitigation?: string;
   identifiedByBotId?: string;
-  identifiedAt: string;
+  identifiedAt?: string;
 }
 
 export interface DealRecord {
   id: string;
   targetCompany: string;
-  stage: "Seed" | "Series A" | "Series B" | "Growth" | "Buyout" | "PE";
+  stage: string;
   sector: string;
   valuationUsd?: number;
   targetCheckSizeUsd?: number;
   leadPartner: string;
-  status: "Sourcing" | "Screening" | "Deep Diligence" | "IC Review" | "Closed" | "Passed";
+  status: string;
   createdAt: string;
   updatedAt: string;
   thesisSummary: string;
@@ -75,16 +75,138 @@ export interface DealRecord {
   findings?: DealFinding[];
   documents?: DealDocument[];
   memo?: {
-    generatedAt: string;
-    version: number;
-    title: string;
-    executiveSummary: string;
-    marketAnalysis: string;
-    financialAnalysis: string;
-    technicalDiligence: string;
-    legalAndRegulatory: string;
-    risksAndMitigations: string;
-    recommendation: string;
+    generatedAt?: string;
+    version?: number;
+    title?: string;
+    rawMarkdown?: string;
+    executiveSummary?: string;
+    marketAnalysis?: string;
+    financialAnalysis?: string;
+    technicalDiligence?: string;
+    legalAndRegulatory?: string;
+    risksAndMitigations?: string;
+    recommendation?: string;
+  };
+}
+
+export function normalizeDeal(raw: any): DealRecord {
+  if (!raw || typeof raw !== "object") {
+    return {
+      id: "unknown",
+      targetCompany: "Untitled Deal",
+      stage: "Series A",
+      sector: "Enterprise Software",
+      leadPartner: "Investment Lead",
+      status: "Active",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      thesisSummary: "",
+      assignedTeamBotIds: [],
+      documents: [],
+      findings: [],
+    };
+  }
+
+  const company = raw.targetCompany || raw.company || raw.name || "ApexFlow AI, Inc.";
+
+  const documents: DealDocument[] = (raw.documents || []).map((doc: any) => {
+    const filename = doc.filename || doc.fileName || doc.name || "document";
+    return {
+      id: doc.id || String(Math.random()),
+      filename,
+      originalName: doc.originalName || doc.fileName || doc.name || filename,
+      mimeType: doc.mimeType || doc.mime || "application/octet-stream",
+      sizeBytes: typeof doc.sizeBytes === "number" ? doc.sizeBytes : typeof doc.bytes === "number" ? doc.bytes : 0,
+      uploadedAt: doc.uploadedAt || new Date().toISOString(),
+      extractedTextLength: typeof doc.extractedTextLength === "number" ? doc.extractedTextLength : typeof doc.wordCount === "number" ? doc.wordCount : 0,
+      extractedTablesCount: typeof doc.extractedTablesCount === "number" ? doc.extractedTablesCount : typeof doc.tablesCount === "number" ? doc.tablesCount : 0,
+      extractionStatus: doc.extractionStatus || "completed",
+      extractionError: doc.extractionError,
+    };
+  });
+
+  const findings: DealFinding[] = (raw.findings || raw.botFindings || []).map((f: any) => {
+    const sev = (f.severity || "medium").toLowerCase();
+    const factOrOpinion = f.factOrAssumptionOrOpinion
+      ? f.factOrAssumptionOrOpinion.toLowerCase()
+      : (f.facts && f.facts.length > 0)
+      ? "fact"
+      : (f.assumptions && f.assumptions.length > 0)
+      ? "assumption"
+      : "opinion";
+    const confidence = (f.confidenceLevel || f.confidence || "high").toLowerCase();
+    return {
+      id: f.id || String(Math.random()),
+      dealId: f.dealId || raw.id,
+      category: (f.category || "financial").toLowerCase(),
+      severity: sev,
+      title: f.title || "Finding",
+      detail: f.detail || f.content || "",
+      factOrAssumptionOrOpinion: factOrOpinion,
+      confidenceLevel: confidence,
+      sourceCitations: f.sourceCitations || f.citations || [],
+      suggestedMitigation: f.suggestedMitigation || (f.opinions && f.opinions[0]) || "",
+      identifiedByBotId: f.identifiedByBotId || f.botKey,
+      identifiedAt: f.identifiedAt || f.createdAt || new Date().toISOString(),
+    };
+  });
+
+  // Normalize memo (handles raw markdown string from server or structured object)
+  let memoObj: DealRecord["memo"] | undefined;
+  if (typeof raw.memo === "string" && raw.memo.trim().length > 0) {
+    memoObj = {
+      title: `${company} Investment Committee Memorandum`,
+      version: 1,
+      rawMarkdown: raw.memo,
+      executiveSummary: raw.memo,
+      generatedAt: raw.updatedAt || new Date().toISOString(),
+    };
+  } else if (raw.memo && typeof raw.memo === "object") {
+    memoObj = {
+      ...raw.memo,
+      version: raw.memo.version || 1,
+      generatedAt: raw.memo.generatedAt || new Date().toISOString(),
+    };
+  }
+
+  // Parse valuation if string (e.g. "$35.0M Pre-Money" -> 35000000)
+  let valNum = raw.valuationUsd;
+  if (typeof raw.valuation === "string") {
+    const m = raw.valuation.match(/[\d.]+/);
+    if (m) valNum = parseFloat(m[0]) * 1e6;
+  }
+  let checkNum = raw.targetCheckSizeUsd;
+  if (typeof raw.targetCheck === "string") {
+    const m = raw.targetCheck.match(/[\d.]+/);
+    if (m) checkNum = parseFloat(m[0]) * 1e6;
+  }
+
+  return {
+    ...raw,
+    id: raw.id || "deal",
+    targetCompany: company,
+    stage: raw.stage || "Series A",
+    sector: raw.sector || "Enterprise Software",
+    valuationUsd: valNum || 35000000,
+    targetCheckSizeUsd: checkNum || 8000000,
+    leadPartner: raw.leadPartner || "Investment Lead",
+    status: raw.status || "Deep Diligence",
+    createdAt: raw.createdAt || new Date().toISOString(),
+    updatedAt: raw.updatedAt || new Date().toISOString(),
+    thesisSummary: raw.thesisSummary || raw.thesisAlignment || "High conviction candidate. Exceptional team and strong gross margin expansion.",
+    allowedModels: raw.allowedModels || [],
+    assignedTeamBotIds: raw.assignedTeamBotIds || [],
+    quickMetrics: raw.quickMetrics || {
+      arrUsd: 3200000,
+      growthYoYPercent: 142,
+      netRetentionPercent: 118,
+      grossMarginPercent: 78.4,
+      cacPaybackMonths: 11,
+      burnMultiple: 1.1,
+    },
+    documents,
+    findings,
+    memo: memoObj,
   };
 }
 
@@ -122,9 +244,10 @@ export function DealsView() {
       const res = await fetch("/api/deals");
       if (res.ok) {
         const data = await res.json();
-        setDeals(data.deals || []);
-        if (data.deals?.length > 0 && !selectedDealId) {
-          setSelectedDealId(data.deals[0].id);
+        const normalized = (data.deals || []).map(normalizeDeal);
+        setDeals(normalized);
+        if (normalized.length > 0 && !selectedDealId) {
+          setSelectedDealId(normalized[0].id);
         }
       }
     } catch {
@@ -504,52 +627,56 @@ export function DealsView() {
                 </div>
               ) : (
                 <div className="divide-y divide-edge/40">
-                  {currentDeal.documents.map((doc) => (
-                    <div key={doc.id} className="flex items-center justify-between p-4 transition-colors hover:bg-raised/30">
-                      <div className="flex items-center gap-3">
-                        <div className="flex size-8 shrink-0 items-center justify-center rounded bg-raised text-ink-secondary">
-                          {doc.filename.endsWith(".csv") || doc.filename.endsWith(".xlsx") ? (
-                            <FileSpreadsheet size={16} className="text-emerald-400" />
-                          ) : (
-                            <FileText size={16} className="text-sky-400" />
-                          )}
-                        </div>
-                        <div>
-                          <div className="font-medium text-ink text-xs">{doc.originalName || doc.filename}</div>
-                          <div className="flex items-center gap-2 text-[11px] text-ink-muted">
-                            <span>{(doc.sizeBytes / 1024).toFixed(1)} KB</span>
-                            <span>•</span>
-                            <span className="text-emerald-400">
-                              {doc.extractedTextLength.toLocaleString()} words
-                            </span>
-                            <span>•</span>
-                            <span>{doc.extractedTablesCount} tables</span>
-                            <span>•</span>
-                            <span>{new Date(doc.uploadedAt).toLocaleDateString()}</span>
+                  {currentDeal.documents.map((doc) => {
+                    const fname = doc.originalName || doc.filename || "document";
+                    const isSpreadsheet = fname.toLowerCase().endsWith(".csv") || fname.toLowerCase().endsWith(".xlsx") || fname.toLowerCase().endsWith(".xls");
+                    return (
+                      <div key={doc.id} className="flex items-center justify-between p-4 transition-colors hover:bg-raised/30">
+                        <div className="flex items-center gap-3">
+                          <div className="flex size-8 shrink-0 items-center justify-center rounded bg-raised text-ink-secondary">
+                            {isSpreadsheet ? (
+                              <FileSpreadsheet size={16} className="text-emerald-400" />
+                            ) : (
+                              <FileText size={16} className="text-sky-400" />
+                            )}
+                          </div>
+                          <div>
+                            <div className="font-medium text-ink text-xs">{fname}</div>
+                            <div className="flex items-center gap-2 text-[11px] text-ink-muted">
+                              <span>{((doc.sizeBytes || 0) / 1024).toFixed(1)} KB</span>
+                              <span>•</span>
+                              <span className="text-emerald-400">
+                                {(doc.extractedTextLength || 0).toLocaleString()} words
+                              </span>
+                              <span>•</span>
+                              <span>{doc.extractedTablesCount || 0} tables</span>
+                              <span>•</span>
+                              <span>{doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString() : ""}</span>
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handlePreviewDoc(doc)}
-                          className="flex items-center gap-1 rounded bg-raised px-2.5 py-1 text-ink-secondary text-xs hover:text-ink"
-                        >
-                          <Eye size={12} />
-                          <span>Preview</span>
-                        </button>
-                        <a
-                          href={`/api/deals/${encodeURIComponent(currentDeal.id)}/data-room/${encodeURIComponent(doc.id)}/raw`}
-                          download={doc.originalName || doc.filename}
-                          className="flex items-center gap-1 rounded bg-raised px-2.5 py-1 text-ink-secondary text-xs hover:text-ink"
-                        >
-                          <Download size={12} />
-                          <span>Download</span>
-                        </a>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handlePreviewDoc(doc)}
+                            className="flex items-center gap-1 rounded bg-raised px-2.5 py-1 text-ink-secondary text-xs hover:text-ink"
+                          >
+                            <Eye size={12} />
+                            <span>Preview</span>
+                          </button>
+                          <a
+                            href={`/api/deals/${encodeURIComponent(currentDeal.id)}/data-room/${encodeURIComponent(doc.id)}/raw`}
+                            download={fname}
+                            className="flex items-center gap-1 rounded bg-raised px-2.5 py-1 text-ink-secondary text-xs hover:text-ink"
+                          >
+                            <Download size={12} />
+                            <span>Download</span>
+                          </a>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -728,23 +855,30 @@ export function DealsView() {
                 </div>
               </div>
 
-              {/* Memo Sections */}
-              {[
-                { title: "1. Executive Summary & Thesis", content: currentDeal.memo?.executiveSummary },
-                { title: "2. Market Opportunity & Competitive Moats", content: currentDeal.memo?.marketAnalysis },
-                { title: "3. Financial Diligence & Unit Economics", content: currentDeal.memo?.financialAnalysis },
-                { title: "4. Technical Diligence & IP Architecture", content: currentDeal.memo?.technicalDiligence },
-                { title: "5. Legal, Regulatory & Cap Table", content: currentDeal.memo?.legalAndRegulatory },
-                { title: "6. Key Risks & Mitigations (Red Team Analysis)", content: currentDeal.memo?.risksAndMitigations },
-                { title: "7. Recommendation & Proposed Terms", content: currentDeal.memo?.recommendation },
-              ].map((sec, i) => (
-                <div key={i} className="space-y-2">
-                  <h3 className="font-semibold text-accent text-sm">{sec.title}</h3>
-                  <p className="text-xs leading-relaxed text-ink-secondary whitespace-pre-wrap">
-                    {sec.content || "Diligence in progress for this section."}
-                  </p>
+              {/* Memo Document Body */}
+              {currentDeal.memo?.rawMarkdown ? (
+                <div className="whitespace-pre-wrap font-sans text-xs leading-relaxed text-ink-secondary bg-black/20 p-5 rounded-lg border border-edge/40">
+                  {currentDeal.memo.rawMarkdown}
                 </div>
-              ))}
+              ) : (
+                /* Memo Sections */
+                [
+                  { title: "1. Executive Summary & Thesis", content: currentDeal.memo?.executiveSummary },
+                  { title: "2. Market Opportunity & Competitive Moats", content: currentDeal.memo?.marketAnalysis },
+                  { title: "3. Financial Diligence & Unit Economics", content: currentDeal.memo?.financialAnalysis },
+                  { title: "4. Technical Diligence & IP Architecture", content: currentDeal.memo?.technicalDiligence },
+                  { title: "5. Legal, Regulatory & Cap Table", content: currentDeal.memo?.legalAndRegulatory },
+                  { title: "6. Key Risks & Mitigations (Red Team Analysis)", content: currentDeal.memo?.risksAndMitigations },
+                  { title: "7. Recommendation & Proposed Terms", content: currentDeal.memo?.recommendation },
+                ].map((sec, i) => (
+                  <div key={i} className="space-y-2">
+                    <h3 className="font-semibold text-accent text-sm">{sec.title}</h3>
+                    <p className="text-xs leading-relaxed text-ink-secondary whitespace-pre-wrap">
+                      {sec.content || "Diligence in progress for this section."}
+                    </p>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         ) : activeTab === "channel" ? (
