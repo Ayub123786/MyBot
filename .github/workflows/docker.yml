@@ -50,6 +50,7 @@ jobs:
           docker exec omb curl -sf http://127.0.0.1:8799/ | grep -qi "<html" || { docker logs omb; echo "UI not served"; exit 1; }
           docker logs omb | tail -5
       - name: Prove the image finds its enterprise layer
+        if: hashFiles('enterprise/**') != ''
         # The image ships dist-server/ alone, so the bundled layer sits inside
         # the server root (server/enterprise.ts looks there after the sibling
         # folder). A key that is not genuine proves the layer loaded and

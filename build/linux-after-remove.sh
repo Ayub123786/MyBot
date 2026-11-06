@@ -31,7 +31,11 @@ fi
 # remove an unrelated file that now happens to use the same command name.
 if [ "$TEST_MODE" -eq 0 ]; then
   if command -v update-alternatives >/dev/null 2>&1; then
-    update-alternatives --remove openmausbot /opt/OpenMausBot/openmausbot
+    update-alternatives --remove openmausbot /opt/OpenMausBot/openmausbot 2>/dev/null || true
+    update-alternatives --remove mybot /opt/MyBot/mybot 2>/dev/null || true
+  fi
+  if [ -L /usr/bin/mybot ] && [ "$(readlink /usr/bin/mybot)" = /opt/MyBot/mybot ]; then
+    rm -- /usr/bin/mybot
   elif [ -L /usr/bin/openmausbot ] && [ "$(readlink /usr/bin/openmausbot)" = /opt/OpenMausBot/openmausbot ]; then
     rm -- /usr/bin/openmausbot
   fi

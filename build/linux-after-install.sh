@@ -24,7 +24,11 @@ if [ -n "${OPENMAUSBOT_POSTINSTALL_TEST_ROOT:-}" ]; then
   APPARMOR_STATUS=$APP_ROOT/test-system/apparmor_status
   USERNS_RESTRICTION=$APP_ROOT/test-system/apparmor_restrict_unprivileged_userns
 else
-  APP_ROOT=/opt/OpenMausBot
+  if [ -d /opt/MyBot ]; then
+    APP_ROOT=/opt/MyBot
+  else
+    APP_ROOT=/opt/OpenMausBot
+  fi
   EXPECTED_OWNER=root:root
   TEST_MODE=0
   APPARMOR_DIR=/etc/apparmor.d

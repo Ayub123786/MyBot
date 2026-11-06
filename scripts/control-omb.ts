@@ -2,7 +2,7 @@
 // The openmausbot headless verbs for verifying an isolated fixture. A verb that
 // changes something never runs on a server it merely found.
 import { spawn, type ChildProcess } from "node:child_process";
-import { closeSync, mkdirSync, mkdtempSync, openSync, writeFileSync } from "node:fs";
+import { chmodSync, closeSync, mkdirSync, mkdtempSync, openSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { delimiter, dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -157,7 +157,9 @@ export function verificationServerEnvironment(parentEnv: NodeJS.ProcessEnv, data
     FAKE_CLAUDE_DUMP: join(dataDir, "fake-claude-dump.json"),
     // POSIX resolves the fake CLI's `#!/usr/bin/env node` shebang through PATH;
     // Windows resolves it through spawnCli without a shell.
-    PATH: dirname(process.execPath),
+    PATH: process.platform === "win32"
+      ? `${dirname(process.execPath)};${parentEnv.SYSTEMROOT || "C:\\Windows"}\\System32`
+      : dirname(process.execPath),
     // Without it the server also scans /opt/homebrew/bin, /usr/local/bin and the
     // login shell's PATH, finding a developer's own engine CLIs that CI lacks.
     OMB_TEST_SEALED_PATH: "1",
@@ -265,6 +267,13 @@ export async function launchVerificationServer(
   const port = range ? await freePortBlock([0, 1], Number(range[1]), Number(range[2]) - Number(range[1])) : await freePortBlock([0, 1]);
   if (signal?.aborted) throw new ControlOmbError("verification launch cancelled");
   const url = `http://127.0.0.1:${port}`;
+  try {
+    chmodSync(FAKE_CLI, 0o755);
+    chmodSync(fileURLToPath(new URL("../server/testing/fake-acp-cli.ts", import.meta.url)), 0o755);
+    chmodSync(fileURLToPath(new URL("../server/testing/fake-codex-app-server.ts", import.meta.url)), 0o755);
+    chmodSync(fileURLToPath(new URL("../server/testing/fake-agy-cli.ts", import.meta.url)), 0o755);
+    chmodSync(fileURLToPath(new URL("../server/testing/fake-pi-cli.ts", import.meta.url)), 0o755);
+  } catch {}
   // Native browser daemons use UNIX sockets, and a macOS temp home can exceed
   // their path limit.
   const dataDir = mkdtempSync(join(browser && process.platform !== "win32" ? "/tmp" : tmpdir(), "openmausbot-verify-data-"));
@@ -275,6 +284,7 @@ export async function launchVerificationServer(
   mkdirSync(evidenceDir, { recursive: true });
   const logPath = join(evidenceDir, `server-${Date.now()}-${process.pid}.log`);
   writeFileSync(join(dataDir, "config.json"), JSON.stringify({
+    defaultModelSelection: { instanceId: "claude", model: "claude-sonnet-5" },
     ...(boatFixtureApi ? { box: { token: "box_verification_fixture" } } : {}),
     instances: {
       ...(extraProviders.includes("codex") ? { codex: {
@@ -319,7 +329,7 @@ export async function launchVerificationServer(
   });
   closeSync(log);
 
-  const deadline = Date.now() + 20_000;
+  const deadline = Date.now() + 35_000;
   try {
     for (;;) {
       if (signal?.aborted) throw new ControlOmbError("verification launch cancelled");

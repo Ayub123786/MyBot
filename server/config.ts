@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { z } from "zod";
 import { normalizeImageGenerationUrl, type ImageGenerationConfig } from "../shared/image-generation.ts";
-import { DATA_DIR_NAME } from "../shared/brand.ts";
+import { DATA_DIR_NAME, LEGACY_DATA_DIR_NAME } from "../shared/brand.ts";
 import { migrateDataDir } from "../shared/data-migration.ts";
 import { DEFAULT_DILIGENCE_MCP_SERVERS } from "../shared/mcp-templates.ts";
 import { botAvatarUrlSchema } from "../shared/bot-avatar.ts";
@@ -751,18 +751,28 @@ export function changedInstanceIds(before: Record<string, unknown>, after: Recor
     .filter((id) => !isDeepStrictEqual(before[id], after[id]));
 }
 
-export const DATA_DIR = process.env.OMB_DATA_DIR ?? join(homedir(), DATA_DIR_NAME);
+function resolveDataDir(): string {
+  if (process.env.OMB_DATA_DIR) return process.env.OMB_DATA_DIR;
+  const legacyDir = join(homedir(), LEGACY_DATA_DIR_NAME);
+  const newDir = join(homedir(), DATA_DIR_NAME);
+  if (existsSync(legacyDir) && !existsSync(newDir)) {
+    return legacyDir;
+  }
+  return newDir;
+}
+
+export const DATA_DIR = resolveDataDir();
 export const EVENTS_DIR = join(DATA_DIR, "events");
 export const NATIVE_DIR = join(DATA_DIR, "native");
 
 export function ensureDirs() {
-  if (!process.env.OMB_DATA_DIR) {
+  if (DATA_DIR !== join(homedir(), LEGACY_DATA_DIR_NAME) && !process.env.OMB_DATA_DIR && !process.env.VITEST && !process.env.OMB_TEST_SEALED_PATH) {
     migrateDataDir();
   }
   for (const dir of [DATA_DIR, EVENTS_DIR, NATIVE_DIR]) mkdirSync(dir, { recursive: true });
   migrateLegacyFeatureFlags(DATA_DIR);
   const configFile = join(DATA_DIR, "config.json");
-  if (!process.env.OMB_DATA_DIR && !existsSync(configFile)) {
+  if (!process.env.OMB_DATA_DIR && !process.env.VITEST && !process.env.OMB_TEST_SEALED_PATH && !existsSync(configFile)) {
     try {
       writeFileSync(configFile, JSON.stringify({ mcpServers: DEFAULT_DILIGENCE_MCP_SERVERS }, null, 2), "utf8");
     } catch {

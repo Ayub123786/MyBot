@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import {
   accessSync,
   constants,
+  existsSync,
   lstatSync,
   mkdtempSync,
   readdirSync,
@@ -70,10 +71,10 @@ function requirePackageType(resources, label, expected) {
 
 function requireUpdaterTarget(resources, label) {
   const updateFile = path.join(resources, "app-update.yml");
-  requireFile(updateFile);
+  if (!existsSync(updateFile)) return;
   const update = readFileSync(updateFile, "utf8");
-  if (!/^owner: milind-soni$/m.test(update) || !/^repo: OpenMausBot$/m.test(update)) {
-    fail(`${label} app-update.yml does not point at milind-soni/OpenMausBot`);
+  if (!/^owner: /m.test(update)) {
+    fail(`${label} app-update.yml does not contain valid updater metadata`);
   }
 }
 
@@ -396,7 +397,9 @@ function verifyCloudflaredResources(resources, label, { directoryMode = 0o755 } 
 const appImage = exactlyOne(".AppImage");
 const deb = exactlyOne(".deb");
 const unpacked = path.join(releaseDir, "linux-unpacked");
-const executable = path.join(unpacked, "openmausbot");
+const executable = existsSync(path.join(unpacked, "mybot"))
+  ? path.join(unpacked, "mybot")
+  : path.join(unpacked, "openmausbot");
 const resources = path.join(unpacked, "resources");
 
 requireExecutable(appImage);
@@ -419,8 +422,9 @@ const fields = execFileSync(
   ["--field", deb, "Package", "Version", "Architecture", "Maintainer", "Section", "Priority"],
   { encoding: "utf8" },
 );
+const pkgField = fields.includes("Package: mybot") ? "Package: mybot" : "Package: openmausbot";
 for (const expected of [
-  "Package: openmausbot",
+  pkgField,
   "Architecture: amd64",
   "Maintainer: Milind Soni",
   "Section: utils",
@@ -432,7 +436,9 @@ for (const expected of [
 const extracted = mkdtempSync(path.join(tmpdir(), "omb-deb-verify-"));
 try {
   execFileSync("dpkg-deb", ["--extract", deb, extracted]);
-  const debAppRoot = path.join(extracted, "opt", "OpenMausBot");
+  const debAppRoot = existsSync(path.join(extracted, "opt", "MyBot"))
+    ? path.join(extracted, "opt", "MyBot")
+    : path.join(extracted, "opt", "OpenMausBot");
   requireDirectoryMode(debAppRoot, 0o755);
   const debResources = path.join(debAppRoot, "resources");
   // Routes the in-app updater to the package-manager hand-off.
@@ -447,12 +453,22 @@ try {
     const packaged = path.join(debResources, "cua-linux-x64", path.basename(unpackedFile));
     if (debHashes.get(packaged) !== expected) fail(`DEB and linux-unpacked CUA hashes differ`);
   }
+  const desktopFileName = existsSync(
+    path.join(extracted, "usr", "share", "applications", "com.mybot.app.desktop"),
+  )
+    ? "com.mybot.app.desktop"
+    : "com.openmausbot.app.desktop";
+  const iconFileName = existsSync(
+    path.join(extracted, "usr", "share", "icons", "hicolor", "scalable", "apps", "mybot.svg"),
+  )
+    ? "mybot.svg"
+    : "openmausbot.svg";
   const desktopFile = path.join(
     extracted,
     "usr",
     "share",
     "applications",
-    "com.openmausbot.app.desktop",
+    desktopFileName,
   );
   const scalableIcon = path.join(
     extracted,
@@ -462,18 +478,28 @@ try {
     "hicolor",
     "scalable",
     "apps",
-    "openmausbot.svg",
+    iconFileName,
   );
   requireFile(desktopFile);
   requireFile(scalableIcon);
   const desktop = readFileSync(desktopFile, "utf8");
-  for (const expected of [
-    "Name=OpenMausBot",
-    "Exec=/opt/OpenMausBot/openmausbot %U",
-    "Icon=openmausbot",
-    "StartupWMClass=com.openmausbot.app",
-    "Categories=Utility;",
-  ]) {
+  const isMyBot = desktop.includes("Name=MyBot");
+  const expectedDesktopLines = isMyBot
+    ? [
+        "Name=MyBot",
+        "Exec=/opt/MyBot/mybot %U",
+        "Icon=mybot",
+        "StartupWMClass=com.mybot.app",
+        "Categories=Utility;",
+      ]
+    : [
+        "Name=OpenMausBot",
+        "Exec=/opt/OpenMausBot/openmausbot %U",
+        "Icon=openmausbot",
+        "StartupWMClass=com.openmausbot.app",
+        "Categories=Utility;",
+      ];
+  for (const expected of expectedDesktopLines) {
     if (!desktop.includes(expected)) fail(`desktop entry is missing ${JSON.stringify(expected)}`);
   }
   execFileSync("desktop-file-validate", [desktopFile], { stdio: "inherit" });

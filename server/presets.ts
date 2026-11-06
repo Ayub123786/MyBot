@@ -272,7 +272,7 @@ export function createPresetStore(file: string = PRESETS_FILE): PresetStore {
     },
   };
 
-  if (file === PRESETS_FILE && !existsSync(file)) {
+  if (file === PRESETS_FILE && !existsSync(file) && !process.env.VITEST && !process.env.OMB_TEST_SEALED_PATH && process.env.OMB_SEED_DEAL_TEAM !== "0") {
     try {
       const currentDir = typeof __dirname !== "undefined" ? __dirname : dirname(fileURLToPath(import.meta.url));
       const dealTeamPath = join(currentDir, "../shared/presets/deal-team.json");
