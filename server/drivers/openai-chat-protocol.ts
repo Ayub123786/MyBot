@@ -94,7 +94,7 @@ export class ChatToolCalls {
       if (delta.extra_content !== undefined) {
         const extra = object(delta.extra_content);
         if (extra) {
-          call.extra_content = { ...(call.extra_content ?? {}), ...extra };
+          call.extra_content = { ...call.extra_content, ...extra };
         }
       }
       if (delta.function !== undefined) {
