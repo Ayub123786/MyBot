@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { chmodSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { chmodSync, existsSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -28,12 +28,22 @@ if (appImages.length !== 1) {
 }
 const [appImage] = appImages;
 
-const executables = [
+const unpackedBin = [
+  path.join(root, "release", "linux-unpacked", "mybot"),
   path.join(root, "release", "linux-unpacked", "openmausbot"),
+].find((candidate) => existsSync(candidate)) ?? path.join(root, "release", "linux-unpacked", "mybot");
+
+const installedDebBin = [
+  "/opt/MyBot/mybot",
+  "/opt/OpenMausBot/openmausbot",
+].find((candidate) => existsSync(candidate));
+
+const executables = [
+  unpackedBin,
   path.join(root, "release", appImage),
 ];
-if (process.env.OMB_SMOKE_INSTALLED_DEB === "1") {
-  executables.push("/opt/OpenMausBot/openmausbot");
+if (process.env.OMB_SMOKE_INSTALLED_DEB === "1" && installedDebBin) {
+  executables.push(installedDebBin);
 }
 
 for (const executable of executables) {
